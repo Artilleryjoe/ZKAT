@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/zkat/attestation.schema.json",
+  "title": "ZKAT Milestone 1 Attestation",
+  "description": "Schema placeholder for Milestone 1 attestation documents.",
+  "type": "object",
+  "additionalProperties": true
+}
