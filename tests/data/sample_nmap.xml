@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<nmaprun scanner="nmap" args="nmap -p139,445 -oX - localhost" start="1697049600">
+  <host>
+    <status state="up" reason="syn-ack" />
+    <address addr="127.0.0.1" addrtype="ipv4" />
+    <hostnames>
+      <hostname name="localhost" type="PTR" />
+    </hostnames>
+    <ports>
+      <port protocol="tcp" portid="139">
+        <state state="closed" reason="reset" />
+        <service name="netbios-ssn" product="Samba" />
+      </port>
+      <port protocol="tcp" portid="445">
+        <state state="open" reason="syn-ack" />
+        <service name="microsoft-ds" product="Samba" version="4.13" />
+      </port>
+      <port protocol="tcp" portid="22">
+        <state state="open" reason="syn-ack" />
+        <service name="ssh" />
+      </port>
+    </ports>
+  </host>
+</nmaprun>

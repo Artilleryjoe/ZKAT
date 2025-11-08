@@ -2,7 +2,127 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.com/zkat/attestation.schema.json",
   "title": "ZKAT Milestone 1 Attestation",
-  "description": "Schema placeholder for Milestone 1 attestation documents.",
+  "description": "Schema for Milestone 1 attestation documents.",
   "type": "object",
+  "required": [
+    "$schema",
+    "run_id",
+    "generated_at",
+    "digest",
+    "canonical",
+    "nmap"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[0-9]{8}T[0-9]{6}Z$"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "target": {
+      "type": ["string", "null"]
+    },
+    "digest": {
+      "type": "object",
+      "required": ["canonical_sha3_256"],
+      "properties": {
+        "canonical_sha3_256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "previous": {
+      "type": "object",
+      "properties": {
+        "hash": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "run_id": {
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "public_key": {
+      "type": "string"
+    },
+    "canonical": {
+      "type": "object",
+      "properties": {
+        "nmaprun": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "hosts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["addresses", "ports"],
+            "properties": {
+              "addresses": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "addr": {"type": "string"},
+                    "addrtype": {"type": "string"}
+                  },
+                  "required": ["addr", "addrtype"],
+                  "additionalProperties": false
+                }
+              },
+              "hostnames": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "status": {
+                "type": ["string", "null"]
+              },
+              "ports": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["portid", "protocol", "state", "service"],
+                  "properties": {
+                    "portid": {"type": "integer"},
+                    "protocol": {"type": "string"},
+                    "state": {"type": "string"},
+                    "reason": {"type": ["string", "null"]},
+                    "service": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "nmap": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
   "additionalProperties": true
 }
