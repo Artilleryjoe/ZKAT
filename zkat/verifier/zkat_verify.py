@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import binascii
 import hashlib
 import json
 from pathlib import Path
@@ -61,7 +62,11 @@ def _load_public_key(args: argparse.Namespace, signature_record: dict[str, Any])
     raise ValueError("No public key provided for signature verification")
 
 
-def _verify_email(args: argparse.Namespace, attestation: dict[str, Any]) -> dict[str, Any] | None:
+def _verify_email(
+    args: argparse.Namespace,
+    attestation: dict[str, Any],
+    attestation_bytes: bytes,
+) -> dict[str, Any] | None:
     if not args.email:
         return None
 
@@ -69,6 +74,19 @@ def _verify_email(args: argparse.Namespace, attestation: dict[str, Any]) -> dict
     digest = attestation.get("digest", {}).get("canonical_sha3_256")
     if record.get("digest") != digest:
         raise ValueError("Digest recorded in email does not match attestation")
+
+    payload_b64 = record.get("payload_b64")
+    if not payload_b64:
+        raise ValueError("Anchor email missing embedded payload")
+
+    try:
+        payload_bytes = base64.b64decode(payload_b64, validate=True)
+    except (ValueError, binascii.Error) as exc:
+        raise ValueError("Anchor email payload is not valid Base64") from exc
+
+    if payload_bytes != attestation_bytes:
+        raise ValueError("Anchor email payload does not match attestation")
+
     return record
 
 
@@ -94,7 +112,9 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
 def main(argv: Sequence[str] | None = None) -> None:
     args = _parse_args(argv)
 
-    attestation = _load_json(args.attestation)
+    attestation_path = Path(args.attestation)
+    attestation_bytes = attestation_path.read_bytes()
+    attestation = json.loads(attestation_bytes)
     signature_record = _load_json(args.signature)
 
     canonical_bytes = _derive_canonical_bytes(args, attestation)
@@ -108,7 +128,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     if not signature_b64:
         raise SystemExit("Signature record missing signature field")
 
-    if not verify_dilithium2(public_key, Path(args.attestation).read_bytes(), signature_b64):
+    if not verify_dilithium2(public_key, attestation_bytes, signature_b64):
         raise SystemExit("Signature verification failed")
 
     _verify_temporal_sanity(attestation)
@@ -117,7 +137,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     if schema_errors:
         raise SystemExit("; ".join(schema_errors))
 
-    email_record = _verify_email(args, attestation)
+    try:
+        email_record = _verify_email(args, attestation, attestation_bytes)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
 
     print(
         json.dumps(
