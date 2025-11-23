@@ -6,6 +6,7 @@ from email.policy import default as default_policy
 from pathlib import Path
 
 import pytest
+from git import Repo
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -15,6 +16,7 @@ from zkat.agent import email_anchor
 from zkat.agent import canonicalize_nmap
 from zkat.agent import pqc_sign
 from zkat.agent import zkat_agent
+from zkat.agent import git_anchor
 from zkat.verifier import zkat_verify
 
 
@@ -142,3 +144,48 @@ def test_verifier_rejects_tampered_email_payload(tmp_path):
                 str(email_path),
             ]
         )
+
+
+def test_verifier_rejects_digest_mismatch(tmp_path):
+    artifacts = _execute_agent(tmp_path)
+
+    attestation_path = artifacts["attestation"]
+    signature_path = artifacts["signature"]
+    canonical_path = artifacts["canonical"]
+    email_path = artifacts["email"]
+
+    message = BytesParser(policy=default_policy).parsebytes(email_path.read_bytes())
+    message.replace_header("X-ZKAT-Digest", "0" * 64)
+    email_path.write_bytes(message.as_bytes())
+
+    with pytest.raises(SystemExit, match="Digest recorded in email does not match"):
+        zkat_verify.main(
+            [
+                "--attestation",
+                str(attestation_path),
+                "--signature",
+                str(signature_path),
+                "--canonical",
+                str(canonical_path),
+                "--email",
+                str(email_path),
+            ]
+        )
+
+
+def test_git_anchor_creates_commit(tmp_path):
+    repo_path = tmp_path / "repo"
+    repo = Repo.init(repo_path, initial_branch="main")
+    config = repo.config_writer()
+    config.set_value("user", "name", "ZKAT Tester")
+    config.set_value("user", "email", "tester@example.com")
+    config.release()
+
+    attestation_file = repo_path / "attestation.json"
+    attestation_file.write_text("{}")
+
+    result = git_anchor.commit_attestation(repo_path, attestation_file, "Add attestation", branch="main")
+
+    assert repo.head.commit.hexsha == result["commit"]
+    assert repo.head.reference.name == "main"
+    assert Path(repo_path / result["path"]).exists()
