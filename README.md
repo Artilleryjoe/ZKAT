@@ -85,8 +85,12 @@ python -m zkat.verifier.zkat_verify \
   --attestation out/<run-id>/attestation.json \
   --signature out/<run-id>/signature.json \
   --canonical out/<run-id>/canonical.json \
-  --email out/<run-id>/email/<run-id>.eml
+  --email out/<run-id>/email/<run-id>.eml \
+  --expected-previous state/chain_tip.json
 ```
 
 Provide `--nmap-xml` instead of `--canonical` to re-canonicalize a raw Nmap XML
 input. The default JSON Schema is bundled under `zkat/schema/attestation.schema.json`.
+When supplying `--expected-previous` the verifier will enforce continuity with the
+hash/run-id recorded from the prior attestation, allowing a full audit trail to be
+validated without trusting agent-local state.

@@ -109,6 +109,22 @@ def test_agent_and_verifier_integration(tmp_path, capsys):
     assert "\"status\": \"ok\"" in out
 
 
+def test_agent_updates_chain_tip(tmp_path):
+    state_dir = tmp_path / "state"
+    previous_tip = {"hash": "0" * 64, "run_id": "19700101T000000Z"}
+    state_dir.mkdir(parents=True, exist_ok=True)
+    (state_dir / "chain_tip.json").write_text(json.dumps(previous_tip))
+
+    artifacts = _execute_agent(tmp_path)
+
+    attestation_doc = json.loads(artifacts["attestation"].read_text())
+    assert attestation_doc["previous"] == previous_tip
+
+    chain_tip = json.loads((state_dir / "chain_tip.json").read_text())
+    assert chain_tip["hash"] == attestation_doc["digest"]["canonical_sha3_256"]
+    assert chain_tip["run_id"] == attestation_doc["run_id"]
+
+
 def test_verifier_rejects_tampered_email_payload(tmp_path):
     artifacts = _execute_agent(tmp_path)
 
@@ -169,6 +185,29 @@ def test_verifier_rejects_digest_mismatch(tmp_path):
                 str(canonical_path),
                 "--email",
                 str(email_path),
+            ]
+        )
+
+
+def test_verifier_enforces_chain_tip(tmp_path):
+    artifacts = _execute_agent(tmp_path)
+
+    expected_previous = tmp_path / "expected_previous.json"
+    expected_previous.write_text(json.dumps({"hash": "bad", "run_id": "run"}))
+
+    with pytest.raises(SystemExit, match="chain tip"):
+        zkat_verify.main(
+            [
+                "--attestation",
+                str(artifacts["attestation"]),
+                "--signature",
+                str(artifacts["signature"]),
+                "--canonical",
+                str(artifacts["canonical"]),
+                "--email",
+                str(artifacts["email"]),
+                "--expected-previous",
+                str(expected_previous),
             ]
         )
 

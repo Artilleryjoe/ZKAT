@@ -105,6 +105,7 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--canonical", type=Path, help="Canonical JSON output from the agent")
     parser.add_argument("--nmap-xml", type=Path, help="Original Nmap XML to re-canonicalize")
     parser.add_argument("--email", type=Path, help="Anchor email to inspect")
+    parser.add_argument("--expected-previous", type=Path, help="Chain tip expected to precede this attestation")
     parser.add_argument("--schema", type=Path, default=_default_schema_path())
     return parser.parse_args(argv)
 
@@ -122,6 +123,11 @@ def main(argv: Sequence[str] | None = None) -> None:
     recorded_digest = attestation.get("digest", {}).get("canonical_sha3_256")
     if recorded_digest != digest_hex:
         raise SystemExit("Canonical digest mismatch")
+
+    if args.expected_previous:
+        expected_previous = _load_json(Path(args.expected_previous))
+        if attestation.get("previous") != expected_previous:
+            raise SystemExit("Attestation chain tip does not match expected previous value")
 
     public_key = _load_public_key(args, signature_record)
     signature_b64 = signature_record.get("signature")
