@@ -17,6 +17,7 @@ from .canonicalize_nmap import canon_ports_139_445
 from .email_anchor import send_anchor_email
 from .git_anchor import commit_attestation
 from .pqc_sign import derive_public_key, sign_dilithium2
+from .controls import ControlContext, run_control_probes
 
 
 DEFAULT_SCHEMA = "https://example.com/zkat/attestation.schema.json"
@@ -179,10 +180,14 @@ def main(argv: Sequence[str] | None = None) -> None:
     canonical_path.write_bytes(canonical_bytes)
 
     digest_hex = hashlib.sha3_256(canonical_bytes).hexdigest()
+    canonical_document = json.loads(canonical_bytes.decode("utf-8"))
+
+    control_context = ControlContext(
+        run_id=run_id, digest=digest_hex, canonical=canonical_document, nmap=nmap_info
+    )
+    control_results = [result.to_dict() for result in run_control_probes(control_context)]
 
     chain_tip = _load_chain_tip(config.state_dir)
-
-    canonical_document = json.loads(canonical_bytes.decode("utf-8"))
     attestation = {
         "$schema": DEFAULT_SCHEMA,
         "run_id": run_id,
@@ -194,6 +199,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         "previous": chain_tip,
         "public_key": base64.b64encode(public_key).decode("ascii"),
         "canonical": canonical_document,
+        "controls": control_results,
         "nmap": nmap_info,
         "artifacts": {
             "canonical": str(canonical_path),
