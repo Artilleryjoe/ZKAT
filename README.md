@@ -49,3 +49,44 @@ README.md
 
 Implementation will populate the placeholder modules with the Milestone 1 functionality described
 above, accompanied by documentation and automated tests.
+
+## Running the agent
+
+The Milestone 1 agent accepts either a live `nmap` target or a pre-recorded XML
+file and produces a signed attestation bundle under `out/<run-id>/`.  The
+examples below reuse the sample Nmap output from `tests/data/sample_nmap.xml`
+so the workflow remains hermetic.
+
+```
+python -m zkat.agent.zkat_agent \
+  --nmap-xml tests/data/sample_nmap.xml \
+  --output-dir ./out \
+  --state-dir ./state \
+  --private-key ./state/agent.key \
+  --skip-git
+```
+
+Each run writes:
+
+- `canonical.json`: canonicalized projection of the Nmap XML covering ports 139/445
+- `attestation.json`: payload with digest, chain tip, and embedded canonical JSON
+- `signature.json`: deterministic Dilithium2-compatible signature record
+- `email/*.eml`: DKIM-ready anchor email containing the Base64 payload
+- `summary.json`: convenience pointer to the generated artifacts
+
+## Verifying an attestation
+
+The verifier rebuilds the canonical payload, checks the SHA3-256 digest,
+validates the deterministic signature, ensures timestamps are well-formed, and
+optionally validates the schema and anchor email integrity.
+
+```
+python -m zkat.verifier.zkat_verify \
+  --attestation out/<run-id>/attestation.json \
+  --signature out/<run-id>/signature.json \
+  --canonical out/<run-id>/canonical.json \
+  --email out/<run-id>/email/<run-id>.eml
+```
+
+Provide `--nmap-xml` instead of `--canonical` to re-canonicalize a raw Nmap XML
+input. The default JSON Schema is bundled under `zkat/schema/attestation.schema.json`.
