@@ -50,6 +50,11 @@ README.md
 Implementation will populate the placeholder modules with the Milestone 1 functionality described
 above, accompanied by documentation and automated tests.
 
+## Strategy and Roadmap
+
+See [docs/strategy.md](docs/strategy.md) for the current go-to-market positioning, phased roadmap,
+and immediate actions to grow adoption of privacy-preserving audit trails.
+
 ## Running the agent
 
 The Milestone 1 agent accepts either a live `nmap` target or a pre-recorded XML
