@@ -88,6 +88,10 @@ def test_agent_and_verifier_integration(tmp_path, capsys):
     signature_doc = json.loads(signature_path.read_text())
     assert attestation_doc["digest"]["canonical_sha3_256"]
 
+    controls = attestation_doc.get("controls", [])
+    assert controls, "Attestation should include control results"
+    assert controls[0]["control_id"] == "placeholder.baseline"
+
     # Signature record should contain a base64-encoded public key.
     base64.b64decode(signature_doc["public_key"])  # raises on failure
 
