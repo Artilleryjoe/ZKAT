@@ -14,6 +14,7 @@ dependencies = [
     "gitpython",
     "oqs",
     "python-dateutil",
+    "packaging",
 ]
 
 [project.optional-dependencies]

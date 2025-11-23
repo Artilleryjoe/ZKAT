@@ -21,6 +21,8 @@ from .controls import ControlContext, run_control_probes
 
 
 DEFAULT_SCHEMA = "https://example.com/zkat/attestation.schema.json"
+CONTROL_ID = "nmap-139-445"
+CONTROL_VERSION = "1.0.0"
 
 
 @dataclass
@@ -192,6 +194,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         "$schema": DEFAULT_SCHEMA,
         "run_id": run_id,
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "control": {"id": CONTROL_ID, "version": CONTROL_VERSION},
         "target": config.target,
         "digest": {
             "canonical_sha3_256": digest_hex,
