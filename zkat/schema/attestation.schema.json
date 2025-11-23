@@ -125,6 +125,42 @@
       },
       "additionalProperties": false
     },
+    "controls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["control_id", "metadata", "status", "collected_at", "evidence"],
+        "properties": {
+          "control_id": {"type": "string"},
+          "status": {"type": "string"},
+          "collected_at": {"type": "string", "format": "date-time"},
+          "metadata": {
+            "type": "object",
+            "required": ["source", "version", "trust_domain"],
+            "properties": {
+              "source": {"type": "string"},
+              "version": {"type": "string"},
+              "trust_domain": {"type": "string"}
+            },
+            "additionalProperties": false
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["kind", "summary", "data"],
+              "properties": {
+                "kind": {"type": "string"},
+                "summary": {"type": "string"},
+                "data": {"type": "object"}
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
     "nmap": {
       "type": "object",
       "additionalProperties": true
