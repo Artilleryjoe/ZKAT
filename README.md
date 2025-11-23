@@ -52,8 +52,7 @@ above, accompanied by documentation and automated tests.
 
 ## Strategy and Roadmap
 
-See [docs/strategy.md](docs/strategy.md) for the current go-to-market positioning, phased roadmap,
-and immediate actions to grow adoption of privacy-preserving audit trails.
+Roadmap details will be published once they are ready for public review.
 
 ## Running the agent
 
