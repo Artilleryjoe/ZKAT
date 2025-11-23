@@ -10,7 +10,8 @@
     "generated_at",
     "digest",
     "canonical",
-    "nmap"
+    "nmap",
+    "control"
   ],
   "properties": {
     "$schema": {
@@ -26,6 +27,15 @@
     },
     "target": {
       "type": ["string", "null"]
+    },
+    "control": {
+      "type": "object",
+      "required": ["id", "version"],
+      "properties": {
+        "id": {"type": "string"},
+        "version": {"type": "string"}
+      },
+      "additionalProperties": false
     },
     "digest": {
       "type": "object",
