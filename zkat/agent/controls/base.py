@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, ClassVar, Dict, Iterable, List, Type
+from typing import Any, ClassVar, Iterable, Type
 
 
 @dataclass(frozen=True)
