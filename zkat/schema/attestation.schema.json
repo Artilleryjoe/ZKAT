@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.com/zkat/attestation.schema.json",
-  "title": "ZKAT Milestone 1 Attestation",
-  "description": "Schema for Milestone 1 attestation documents.",
+  "title": "ZKAT Milestone 2 Attestation",
+  "description": "Schema for Milestone 2 attestation documents with optional ZK proofs.",
   "type": "object",
   "required": [
     "$schema",
@@ -168,6 +168,37 @@
     "artifacts": {
       "type": "object",
       "additionalProperties": true
+    },
+    "zk_proof": {
+      "type": "object",
+      "required": ["system", "program_hash", "input_commitment", "public", "receipt"],
+      "properties": {
+        "system": {"type": "string"},
+        "program_hash": {"type": "string"},
+        "input_commitment": {
+          "type": "object",
+          "required": ["algorithm", "digest_hex"],
+          "properties": {
+            "algorithm": {"type": "string"},
+            "digest_hex": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "public": {
+          "type": "object",
+          "required": ["policy_id", "policy_ok"],
+          "properties": {
+            "policy_id": {"type": "string"},
+            "policy_ok": {"type": "boolean"}
+          },
+          "additionalProperties": true
+        },
+        "receipt": {"type": "string"}
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": true

@@ -87,6 +87,9 @@ def test_agent_and_verifier_integration(tmp_path, capsys):
     attestation_doc = json.loads(attestation_path.read_text())
     signature_doc = json.loads(signature_path.read_text())
     assert attestation_doc["digest"]["canonical_sha3_256"]
+    assert attestation_doc["zk_proof"]["input_commitment"]["digest_hex"] == attestation_doc[
+        "digest"
+    ]["canonical_sha3_256"]
 
     controls = attestation_doc.get("controls", [])
     assert controls, "Attestation should include control results"
@@ -106,6 +109,7 @@ def test_agent_and_verifier_integration(tmp_path, capsys):
             str(artifacts["canonical"]),
             "--email",
             str(email_path),
+            "--require-zk",
         ]
     )
 
@@ -162,6 +166,33 @@ def test_verifier_rejects_tampered_email_payload(tmp_path):
                 str(canonical_path),
                 "--email",
                 str(email_path),
+            ]
+        )
+
+
+def test_verifier_rejects_mismatched_zk_commitment(tmp_path):
+    artifacts = _execute_agent(tmp_path)
+
+    attestation_doc = json.loads(artifacts["attestation"].read_text())
+    attestation_doc["zk_proof"]["input_commitment"]["digest_hex"] = "0" * 64
+    tampered_path = artifacts["run_dir"] / "tampered_attestation.json"
+    tampered_bytes = json.dumps(attestation_doc, separators=(",", ":"), sort_keys=True).encode(
+        "utf-8"
+    )
+    tampered_path.write_bytes(tampered_bytes)
+
+    with pytest.raises(SystemExit, match="Signature verification failed"):
+        zkat_verify.main(
+            [
+                "--attestation",
+                str(tampered_path),
+                "--signature",
+                str(artifacts["signature"]),
+                "--canonical",
+                str(artifacts["canonical"]),
+                "--email",
+                str(artifacts["email"]),
+                "--require-zk",
             ]
         )
 
