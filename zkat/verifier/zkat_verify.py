@@ -1,4 +1,4 @@
-"""Verification routines for Milestone 1 attestations."""
+"""Verification routines for Milestone 2 attestations with ZK receipts."""
 
 from __future__ import annotations
 
@@ -15,6 +15,8 @@ from dateutil import parser as date_parser
 from ..agent.email_anchor import parse_anchor_email
 from ..agent.pqc_sign import verify_dilithium2
 from ..agent.canonicalize_nmap import canon_ports_139_445
+
+EXPECTED_ZK_PROGRAM_HASH = "zkvm-risc0-policy-checker-placeholder"
 
 try:  # pragma: no cover - jsonschema is optional at runtime
     from jsonschema import Draft202012Validator
@@ -52,6 +54,71 @@ def _derive_canonical_bytes(args: argparse.Namespace, attestation: dict[str, Any
         xml_bytes = Path(args.nmap_xml).read_bytes()
         return canon_ports_139_445(xml_bytes)
     return _dump_canonical(attestation.get("canonical"))
+
+
+def _evaluate_policy(canonical_document: dict[str, Any]) -> bool:
+    for host in canonical_document.get("hosts", []):
+        for port in host.get("ports", []):
+            if port.get("state") == "open":
+                return False
+    return True
+
+
+def _verify_zk_proof(
+    attestation: dict[str, Any],
+    canonical_bytes: bytes,
+    *,
+    require_zk: bool,
+) -> dict[str, Any] | None:
+    zk_block = attestation.get("zk_proof")
+    if zk_block is None:
+        if require_zk:
+            raise SystemExit("ZK proof is required but missing from attestation")
+        return None
+
+    digest_hex = hashlib.sha3_256(canonical_bytes).hexdigest()
+    attestation_digest = attestation.get("digest", {}).get("canonical_sha3_256")
+    commitment = zk_block.get("input_commitment", {}).get("digest_hex")
+    if commitment != attestation_digest or commitment != digest_hex:
+        raise SystemExit("ZK proof commitment does not match canonical digest")
+
+    if zk_block.get("program_hash") != EXPECTED_ZK_PROGRAM_HASH:
+        raise SystemExit("Unexpected ZK program hash")
+
+    receipt_b64 = zk_block.get("receipt")
+    if not receipt_b64:
+        raise SystemExit("ZK proof missing receipt")
+
+    try:
+        receipt_bytes = base64.b64decode(receipt_b64, validate=True)
+    except (ValueError, binascii.Error) as exc:  # pragma: no cover - defensive
+        raise SystemExit("ZK receipt is not valid Base64") from exc
+
+    try:
+        receipt = json.loads(receipt_bytes.decode("utf-8"))
+    except json.JSONDecodeError as exc:  # pragma: no cover - defensive
+        raise SystemExit("ZK receipt is not valid JSON") from exc
+
+    if receipt.get("program_hash") != EXPECTED_ZK_PROGRAM_HASH:
+        raise SystemExit("ZK receipt program hash mismatch")
+
+    public = receipt.get("public", {})
+    if public.get("commitment") != digest_hex:
+        raise SystemExit("ZK receipt commitment does not match digest")
+
+    canonical_document = json.loads(canonical_bytes.decode("utf-8"))
+    expected_policy_ok = _evaluate_policy(canonical_document)
+
+    if zk_block.get("public", {}).get("policy_ok") != public.get("policy_ok"):
+        raise SystemExit("ZK public output mismatch between attestation and receipt")
+
+    if public.get("policy_ok") != expected_policy_ok:
+        raise SystemExit("ZK policy result does not match canonical projection")
+
+    return {
+        "commitment": public.get("commitment"),
+        "policy_ok": public.get("policy_ok"),
+    }
 
 
 def _load_public_key(args: argparse.Namespace, signature_record: dict[str, Any]) -> bytes:
@@ -107,6 +174,11 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--email", type=Path, help="Anchor email to inspect")
     parser.add_argument("--expected-previous", type=Path, help="Chain tip expected to precede this attestation")
     parser.add_argument("--schema", type=Path, default=_default_schema_path())
+    parser.add_argument(
+        "--require-zk",
+        action="store_true",
+        help="Fail verification if the ZK proof block is missing or invalid",
+    )
     return parser.parse_args(argv)
 
 
@@ -148,6 +220,8 @@ def main(argv: Sequence[str] | None = None) -> None:
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
 
+    zk_status = _verify_zk_proof(attestation, canonical_bytes, require_zk=args.require_zk)
+
     print(
         json.dumps(
             {
@@ -155,6 +229,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 "digest": digest_hex,
                 "signature": signature_b64,
                 "email": email_record,
+                "zk_proof": zk_status,
             },
             indent=2,
         )

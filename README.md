@@ -5,20 +5,23 @@ trail for security controls. Each run produces a signed digest, anchored across 
 systems (Email DKIM, Git), and chained for continuity so verifiers can confirm proofs and anchors
 without ever seeing raw logs.
 
-## Milestone 1 Scope
+## Milestone 2 Scope
 
-Milestone 1 focuses on delivering an end-to-end attestation workflow for an SMB exposure check
-using Nmap as the control primitive. The major components are:
+Milestone 2 extends the Milestone 1 workflow with a zero-knowledge receipt that proves the SMB
+policy result without revealing raw scan data. The major components are:
 
 - **Agent pipeline** that executes Nmap, canonicalizes its XML output, computes a SHA3-256 digest,
-  signs the canonical attestation payload with Dilithium2, and appends email plus Git anchors
-  before persisting artifacts and updating the local chain state.
+  generates a zkVM receipt binding the policy outcome to the same canonical digest, signs the
+  canonical attestation payload with Dilithium2, and appends email plus Git anchors before
+  persisting artifacts and updating the local chain state.
 - **Anchors** consisting of a DKIM-validated email containing the signed payload and a Git commit
   referencing the final attestation. These anchors provide independent, tamper-evident evidence of
   the attestation’s existence.
 - **Verifier** capable of rebuilding the canonical payload, checking schema compliance, validating
   the post-quantum signature, confirming hash-chain continuity, and inspecting the email/Git
-  anchors for authenticity and temporal sanity.
+  anchors for authenticity and temporal sanity. With ``--require-zk`` the verifier also enforces
+  the presence and validity of the zkVM receipt, ensuring the published policy bit matches the
+  canonical digest.
 
 Acceptance tests will cover expected-success and expected-failure scenarios, including signature,
 anchor, and policy violations.
@@ -45,10 +48,16 @@ pyproject.toml
 README.md
 ```
 
-## Next Steps
+## Zero-knowledge policy proof
 
-Implementation will populate the placeholder modules with the Milestone 1 functionality described
-above, accompanied by documentation and automated tests.
+The agent evaluates the policy "no_smb_exposed" by checking that ports 139 and 445 are not marked
+``open`` in the canonical projection. A stub zkVM receipt is generated locally that exposes only
+the boolean policy result and the SHA3-256 commitment over the canonical bytes. The attestation
+records this under ``zk_proof`` with the program identifier
+``zkvm-risc0-policy-checker-placeholder``. Verifiers recompute the canonical digest, confirm the
+commitment matches ``digest.canonical_sha3_256``, and ensure the receipt’s public output aligns
+with the canonicalized port states. Passing ``--require-zk`` forces verification to fail when the
+proof is missing or inconsistent.
 
 ## Strategy and Roadmap
 
