@@ -5,6 +5,12 @@ trail for security controls. Each run produces a signed digest, anchored across 
 systems (Email DKIM, Git), and chained for continuity so verifiers can confirm proofs and anchors
 without ever seeing raw logs.
 
+## Milestones
+
+- **M1:** Signed + anchored digests (DKIM + Git) with chain continuity.
+- **M2:** Zero-knowledge proof that the control outcome satisfies policy (verifier learns only a
+  boolean + commitments).
+
 ## Milestone 2 Scope
 
 Milestone 2 extends the Milestone 1 workflow with a zero-knowledge receipt that proves the SMB
@@ -31,15 +37,30 @@ anchor, and policy violations.
 ```
 zkat/
   agent/
+    zk/
+      prove_policy.py
+      policy_inputs.py
     canonicalize_nmap.py
     email_anchor.py
     git_anchor.py
     pqc_sign.py
     zkat_agent.py
   verifier/
+    zk/
+      verify_receipt.py
     zkat_verify.py
+  zk/
+    policy_checker/
+      README.md
+      src/...
+    artifacts/
+      program_id.txt
   schema/
     attestation.schema.json
+  docs/
+    milestones.md
+    threat_model.md
+    zk_design.md
   state/
     chain_tip.json
   out/
@@ -92,6 +113,19 @@ Each run writes:
 The verifier rebuilds the canonical payload, checks the SHA3-256 digest,
 validates the deterministic signature, ensures timestamps are well-formed, and
 optionally validates the schema and anchor email integrity.
+
+## How verification works (M2)
+
+- Canonicalize the Nmap input to stable JSON bytes.
+- Hash the canonical bytes to derive `result_commitment`.
+- Compare `result_commitment` against the attestation digest.
+- Verify the post-quantum signature over the attestation payload.
+- Validate chain continuity via the `previous` pointer.
+- Inspect DKIM/email anchor integrity (if provided).
+- Inspect Git anchor integrity (if provided).
+- Enforce `--require-zk` if configured.
+- Verify the zk receipt against `program_hash`.
+- Compare the receipt’s policy bit to the attested public output.
 
 ```
 python -m zkat.verifier.zkat_verify \

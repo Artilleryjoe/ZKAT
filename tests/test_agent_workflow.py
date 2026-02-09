@@ -87,9 +87,12 @@ def test_agent_and_verifier_integration(tmp_path, capsys):
     attestation_doc = json.loads(attestation_path.read_text())
     signature_doc = json.loads(signature_path.read_text())
     assert attestation_doc["digest"]["canonical_sha3_256"]
+    assert attestation_doc["result_commitment"]["digest_hex"] == attestation_doc["digest"][
+        "canonical_sha3_256"
+    ]
     assert attestation_doc["zk_proof"]["input_commitment"]["digest_hex"] == attestation_doc[
-        "digest"
-    ]["canonical_sha3_256"]
+        "result_commitment"
+    ]["digest_hex"]
 
     controls = attestation_doc.get("controls", [])
     assert controls, "Attestation should include control results"

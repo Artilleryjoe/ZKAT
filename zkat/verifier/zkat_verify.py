@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import base64
-import binascii
 import hashlib
 import json
 from pathlib import Path
@@ -15,8 +14,9 @@ from dateutil import parser as date_parser
 from ..agent.email_anchor import parse_anchor_email
 from ..agent.pqc_sign import verify_dilithium2
 from ..agent.canonicalize_nmap import canon_ports_139_445
+from .zk.verify_receipt import verify_receipt
 
-EXPECTED_ZK_PROGRAM_HASH = "zkvm-risc0-policy-checker-placeholder"
+PROGRAM_ID_PATH = Path(__file__).resolve().parents[1] / "zk" / "artifacts" / "program_id.txt"
 
 try:  # pragma: no cover - jsonschema is optional at runtime
     from jsonschema import Draft202012Validator
@@ -78,11 +78,16 @@ def _verify_zk_proof(
 
     digest_hex = hashlib.sha3_256(canonical_bytes).hexdigest()
     attestation_digest = attestation.get("digest", {}).get("canonical_sha3_256")
+    result_commitment = attestation.get("result_commitment", {}).get("digest_hex")
     commitment = zk_block.get("input_commitment", {}).get("digest_hex")
-    if commitment != attestation_digest or commitment != digest_hex:
-        raise SystemExit("ZK proof commitment does not match canonical digest")
+    if commitment != result_commitment:
+        raise SystemExit("ZK proof input commitment does not match result commitment")
+    if result_commitment != attestation_digest or result_commitment != digest_hex:
+        raise SystemExit("Result commitment does not match canonical digest")
 
-    if zk_block.get("program_hash") != EXPECTED_ZK_PROGRAM_HASH:
+    expected_program_hash = PROGRAM_ID_PATH.read_text(encoding="utf-8").strip()
+    program_hash = zk_block.get("program_hash")
+    if program_hash != expected_program_hash:
         raise SystemExit("Unexpected ZK program hash")
 
     receipt_b64 = zk_block.get("receipt")
@@ -90,34 +95,25 @@ def _verify_zk_proof(
         raise SystemExit("ZK proof missing receipt")
 
     try:
-        receipt_bytes = base64.b64decode(receipt_b64, validate=True)
-    except (ValueError, binascii.Error) as exc:  # pragma: no cover - defensive
-        raise SystemExit("ZK receipt is not valid Base64") from exc
+        receipt_public = verify_receipt(receipt_b64, program_hash)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
 
-    try:
-        receipt = json.loads(receipt_bytes.decode("utf-8"))
-    except json.JSONDecodeError as exc:  # pragma: no cover - defensive
-        raise SystemExit("ZK receipt is not valid JSON") from exc
-
-    if receipt.get("program_hash") != EXPECTED_ZK_PROGRAM_HASH:
-        raise SystemExit("ZK receipt program hash mismatch")
-
-    public = receipt.get("public", {})
-    if public.get("commitment") != digest_hex:
-        raise SystemExit("ZK receipt commitment does not match digest")
+    if receipt_public.get("commitment_hex") != result_commitment:
+        raise SystemExit("ZK receipt commitment does not match result commitment")
 
     canonical_document = json.loads(canonical_bytes.decode("utf-8"))
     expected_policy_ok = _evaluate_policy(canonical_document)
 
-    if zk_block.get("public", {}).get("policy_ok") != public.get("policy_ok"):
+    if zk_block.get("public", {}).get("policy_ok") != receipt_public.get("policy_ok"):
         raise SystemExit("ZK public output mismatch between attestation and receipt")
 
-    if public.get("policy_ok") != expected_policy_ok:
+    if receipt_public.get("policy_ok") != expected_policy_ok:
         raise SystemExit("ZK policy result does not match canonical projection")
 
     return {
-        "commitment": public.get("commitment"),
-        "policy_ok": public.get("policy_ok"),
+        "commitment": receipt_public.get("commitment_hex"),
+        "policy_ok": receipt_public.get("policy_ok"),
     }
 
 

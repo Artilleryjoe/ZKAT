@@ -18,12 +18,13 @@ from .email_anchor import send_anchor_email
 from .git_anchor import commit_attestation
 from .pqc_sign import derive_public_key, sign_dilithium2
 from .controls import ControlContext, run_control_probes
+from .zk.policy_inputs import build_policy_input
+from .zk.prove_policy import prove_policy
 
 
 DEFAULT_SCHEMA = "https://example.com/zkat/attestation.schema.json"
 CONTROL_ID = "nmap-139-445"
 CONTROL_VERSION = "1.0.0"
-ZK_PROGRAM_HASH = "zkvm-risc0-policy-checker-placeholder"
 
 
 @dataclass
@@ -157,46 +158,7 @@ def _prepare_run_directory(base: Path) -> tuple[str, Path]:
     return timestamp, run_dir
 
 
-def _evaluate_policy(canonical_document: dict[str, Any]) -> bool:
-    """Return ``True`` if neither port 139 nor 445 is open in any host."""
-
-    for host in canonical_document.get("hosts", []):
-        for port in host.get("ports", []):
-            if port.get("state") == "open":
-                return False
-    return True
-
-
-def _prove_policy(canonical_bytes: bytes, canonical_document: dict[str, Any]) -> dict[str, Any]:
-    """Simulate a zkVM policy proof tied to the canonical digest."""
-
-    digest_hex = hashlib.sha3_256(canonical_bytes).hexdigest()
-    policy_ok = _evaluate_policy(canonical_document)
-    receipt_payload = {
-        "public": {
-            "policy_ok": policy_ok,
-            "commitment": digest_hex,
-        },
-        "program_hash": ZK_PROGRAM_HASH,
-    }
-    receipt_bytes = json.dumps(receipt_payload, separators=(",", ":"), sort_keys=True).encode(
-        "utf-8"
-    )
-    receipt_b64 = base64.b64encode(receipt_bytes).decode("ascii")
-
-    return {
-        "system": "zkvm-risc0@0.1",
-        "program_hash": ZK_PROGRAM_HASH,
-        "input_commitment": {
-            "algorithm": "SHA3-256",
-            "digest_hex": digest_hex,
-        },
-        "public": {
-            "policy_id": "no_smb_exposed",
-            "policy_ok": policy_ok,
-        },
-        "receipt": receipt_b64,
-    }
+POLICY_ID = "no_smb_exposed"
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -226,7 +188,8 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     digest_hex = hashlib.sha3_256(canonical_bytes).hexdigest()
     canonical_document = json.loads(canonical_bytes.decode("utf-8"))
-    zk_proof = _prove_policy(canonical_bytes, canonical_document)
+    policy_input = build_policy_input(canonical_bytes, POLICY_ID)
+    zk_bundle = prove_policy(canonical_bytes, POLICY_ID)
 
     control_context = ControlContext(
         run_id=run_id, digest=digest_hex, canonical=canonical_document, nmap=nmap_info
@@ -243,7 +206,20 @@ def main(argv: Sequence[str] | None = None) -> None:
         "digest": {
             "canonical_sha3_256": digest_hex,
         },
-        "zk_proof": zk_proof,
+        "result_commitment": policy_input["result_commitment"],
+        "zk_proof": {
+            "system": "zkvm",
+            "program_hash": zk_bundle["program_hash"],
+            "input_commitment": {
+                "algorithm": "SHA3-256",
+                "digest_hex": zk_bundle["input_commitment_hex"],
+            },
+            "public": {
+                "policy_id": POLICY_ID,
+                "policy_ok": zk_bundle["policy_ok"],
+            },
+            "receipt": zk_bundle["receipt_b64"],
+        },
         "previous": chain_tip,
         "public_key": base64.b64encode(public_key).decode("ascii"),
         "canonical": canonical_document,

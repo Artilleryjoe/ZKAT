@@ -9,6 +9,7 @@
     "run_id",
     "generated_at",
     "digest",
+    "result_commitment",
     "canonical",
     "nmap",
     "control"
@@ -42,6 +43,18 @@
       "required": ["canonical_sha3_256"],
       "properties": {
         "canonical_sha3_256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "result_commitment": {
+      "type": "object",
+      "required": ["algorithm", "digest_hex"],
+      "properties": {
+        "algorithm": {"type": "string"},
+        "digest_hex": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
         }
