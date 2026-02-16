@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import binascii
 import base64
 import hashlib
 import json
