@@ -56,6 +56,7 @@ def _execute_agent(tmp_path: Path) -> dict[str, Path]:
         "signature": run_dir / "signature.json",
         "canonical": run_dir / "canonical.json",
         "email": email_files[0],
+        "private_key": private_key_path,
     }
 
 
@@ -136,6 +137,38 @@ def test_agent_updates_chain_tip(tmp_path):
     assert chain_tip["run_id"] == attestation_doc["run_id"]
 
 
+def test_verifier_rejects_malformed_email_payload_base64(tmp_path):
+    artifacts = _execute_agent(tmp_path)
+
+    email_path = artifacts["email"]
+    email_bytes = email_path.read_bytes()
+    record = email_anchor.parse_anchor_email(email_bytes)
+    parser = BytesParser(policy=default_policy)
+    message = parser.parsebytes(email_bytes)
+    body = message.get_body(preferencelist=("plain",)).get_content()
+    malformed_payload = "!!not-base64!!"
+    tampered_body = body.replace(
+        f"Payload-Base64: {record['payload_b64']}",
+        f"Payload-Base64: {malformed_payload}",
+    )
+    message.set_content(tampered_body)
+    email_path.write_bytes(message.as_bytes())
+
+    with pytest.raises(SystemExit, match="payload is not valid Base64"):
+        zkat_verify.main(
+            [
+                "--attestation",
+                str(artifacts["attestation"]),
+                "--signature",
+                str(artifacts["signature"]),
+                "--canonical",
+                str(artifacts["canonical"]),
+                "--email",
+                str(email_path),
+            ]
+        )
+
+
 def test_verifier_rejects_tampered_email_payload(tmp_path):
     artifacts = _execute_agent(tmp_path)
 
@@ -184,17 +217,22 @@ def test_verifier_rejects_mismatched_zk_commitment(tmp_path):
     )
     tampered_path.write_bytes(tampered_bytes)
 
-    with pytest.raises(SystemExit, match="Signature verification failed"):
+    private_key = artifacts["private_key"].read_bytes()
+    signature_doc = json.loads(artifacts["signature"].read_text())
+    signature_doc["signature"] = pqc_sign.sign_dilithium2(private_key, tampered_bytes)
+    signature_doc["payload"] = tampered_path.name
+    tampered_signature_path = artifacts["run_dir"] / "tampered_signature.json"
+    tampered_signature_path.write_text(json.dumps(signature_doc, indent=2))
+
+    with pytest.raises(SystemExit, match="ZK proof input commitment does not match result commitment"):
         zkat_verify.main(
             [
                 "--attestation",
                 str(tampered_path),
                 "--signature",
-                str(artifacts["signature"]),
+                str(tampered_signature_path),
                 "--canonical",
                 str(artifacts["canonical"]),
-                "--email",
-                str(artifacts["email"]),
                 "--require-zk",
             ]
         )

@@ -1,4 +1,4 @@
-"""Entrypoint for the ZKAT Milestone 2 agent."""
+"""Entry point for the ZKAT Milestone 2 agent."""
 
 from __future__ import annotations
 
@@ -109,7 +109,7 @@ def _run_nmap(binary: str, target: str, destination: Path) -> dict[str, Any]:
 
 
 def _parse_args(argv: Sequence[str] | None) -> AgentConfig:
-    parser = argparse.ArgumentParser(description="ZKAT Milestone 1 attestation agent")
+    parser = argparse.ArgumentParser(description="ZKAT Milestone 2 attestation agent")
     parser.add_argument("--target", help="Target passed to nmap (required unless --nmap-xml is provided)")
     parser.add_argument("--nmap-binary", default="nmap", help="Path to the nmap executable")
     parser.add_argument("--nmap-xml", type=Path, help="Existing Nmap XML file to reuse")
