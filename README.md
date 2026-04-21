@@ -1,9 +1,13 @@
 # ZKAT
 
-Zero-Knowledge Audit Trails (ZKAT) is a lightweight, privacy-preserving, tamper-evident audit
-trail for security controls. Each run produces a signed digest, anchored across independent
-systems (Email DKIM, Git), and chained for continuity so verifiers can confirm proofs and anchors
-without ever seeing raw logs.
+Zero-Knowledge Audit Trails (ZKAT) is an audit-attestation prototype focused on producing
+signed, tamper-evident evidence for security control outcomes. Each run produces a signed digest,
+anchors it across independent systems (Email DKIM, Git), and chains it for continuity so
+verifiers can confirm integrity and provenance without handling raw logs.
+
+> **Current status:** Milestone 1 (signed + anchored attestations) is implemented end-to-end.
+> Milestone 2 (zero-knowledge receipts) is currently a prototype path with simulated/scaffolded
+> components used to exercise verifier and data-binding behavior.
 
 ## Milestones
 
@@ -11,13 +15,14 @@ without ever seeing raw logs.
 - **M2:** Zero-knowledge proof that the control outcome satisfies policy (verifier learns only a
   boolean + commitments).
 
-## Milestone 2 Scope
+## Milestone 2 Scope (Prototype Boundary)
 
-Milestone 2 extends the Milestone 1 workflow with a zero-knowledge receipt that proves the SMB
-policy result without revealing raw scan data. The major components are:
+Milestone 2 extends the Milestone 1 workflow with a prototype zero-knowledge receipt flow for the
+SMB policy result. The current implementation is designed for architecture validation and testing,
+not production cryptographic assurance. The major components are:
 
 - **Agent pipeline** that executes Nmap, canonicalizes its XML output, computes a SHA3-256 digest,
-  generates a zkVM receipt binding the policy outcome to the same canonical digest, signs the
+  generates a **stub zkVM receipt** binding the policy outcome to the same canonical digest, signs the
   canonical attestation payload with Dilithium2, and appends email plus Git anchors before
   persisting artifacts and updating the local chain state.
 - **Anchors** consisting of a DKIM-validated email containing the signed payload and a Git commit
@@ -69,20 +74,29 @@ pyproject.toml
 README.md
 ```
 
-## Zero-knowledge policy proof
+## Zero-knowledge policy proof (Current Prototype)
 
 The agent evaluates the policy "no_smb_exposed" by checking that ports 139 and 445 are not marked
-``open`` in the canonical projection. A stub zkVM receipt is generated locally that exposes only
-the boolean policy result and the SHA3-256 commitment over the canonical bytes. The attestation
-records this under ``zk_proof`` with the program identifier
+``open`` in the canonical projection. A local **stub** zkVM receipt is then generated that exposes
+only the boolean policy result and the SHA3-256 commitment over canonical bytes.
+
+The attestation records this under ``zk_proof`` with the placeholder program identifier
 ``zkvm-risc0-policy-checker-placeholder``. Verifiers recompute the canonical digest, confirm the
-commitment matches ``digest.canonical_sha3_256``, and ensure the receipt’s public output aligns
-with the canonicalized port states. Passing ``--require-zk`` forces verification to fail when the
-proof is missing or inconsistent.
+commitment matches ``digest.canonical_sha3_256``, and ensure the receipt public output aligns with
+the canonicalized port states. Passing ``--require-zk`` forces verification to fail when the proof
+is missing or inconsistent.
+
+This demonstrates binding and verifier logic, but should be treated as a **ZK roadmap prototype**
+rather than a deployed production zkVM integration.
 
 ## Strategy and Roadmap
 
-Roadmap details will be published once they are ready for public review.
+Near-term roadmap:
+
+- Preserve the implemented M1 attestation/verifier workflow as the stable core.
+- Replace placeholder zkVM identifiers/receipts with real proving and verification artifacts.
+- Keep explicit verifier failure-path coverage for signature, anchor, schema, and proof binding.
+- Document production-readiness criteria separately from prototype milestones.
 
 ## Running the agent
 
