@@ -147,6 +147,32 @@ def test_agent_and_verifier_integration(tmp_path, capsys):
     assert "\"status\": \"ok\"" in out
 
 
+def test_agent_rejects_mismatched_public_key_file(tmp_path):
+    state_dir = tmp_path / "state"
+    private_key_path = state_dir / "agent.key"
+    public_key_path = state_dir / "agent.pub"
+    private_key_path.parent.mkdir(parents=True, exist_ok=True)
+    private_key_path.write_bytes(b"agent-private-key" * 4)
+    public_key_path.write_bytes(pqc_sign.derive_public_key(b"different-private-key" * 4))
+
+    with pytest.raises(ValueError, match="does not match the configured private key"):
+        zkat_agent.main(
+            [
+                "--nmap-xml",
+                str(FIXTURE_DIR / "sample_nmap.xml"),
+                "--output-dir",
+                str(tmp_path / "out"),
+                "--state-dir",
+                str(state_dir),
+                "--private-key",
+                str(private_key_path),
+                "--public-key",
+                str(public_key_path),
+                "--skip-git",
+            ]
+        )
+
+
 def test_agent_updates_chain_tip(tmp_path):
     state_dir = tmp_path / "state"
     previous_tip = {"hash": "0" * 64, "run_id": "19700101T000000Z"}
