@@ -29,12 +29,18 @@ def commit_attestation(
     file_path = Path(file_path)
     repo = Repo(repo_path)
 
+    repo_root = Path(repo.working_tree_dir or repo_path).resolve()
     if file_path.is_absolute():
-        tracked_path = file_path
+        tracked_path = file_path.resolve()
     else:
-        tracked_path = repo_path / file_path
+        tracked_path = (repo_root / file_path).resolve()
 
-    repo.index.add([str(tracked_path)])
+    try:
+        relative_path = tracked_path.relative_to(repo_root)
+    except ValueError as exc:
+        raise ValueError("Attestation file must be inside the Git repository") from exc
+
+    repo.index.add([str(relative_path)])
     commit = repo.index.commit(message)
 
     update_result: str | None = None
@@ -51,7 +57,7 @@ def commit_attestation(
         "tree": commit.tree.hexsha,
         "update": update_result,
         "remote": remote,
-        "path": str(tracked_path.relative_to(repo_path)),
+        "path": str(relative_path),
     }
 
 
