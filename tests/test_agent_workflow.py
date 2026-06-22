@@ -70,6 +70,32 @@ def test_canonicalize_filters_ports():
     assert ports[0]["service"]["name"] == "netbios-ssn"
 
 
+def test_canonicalize_orders_duplicate_port_numbers_by_protocol():
+    xml_template = """
+    <nmaprun scanner="nmap">
+      <host>
+        <address addr="10.0.0.1" addrtype="ipv4"/>
+        <ports>
+          {ports}
+        </ports>
+      </host>
+    </nmaprun>
+    """
+    tcp_port = '<port protocol="tcp" portid="445"><state state="closed" reason="reset"/></port>'
+    udp_port = '<port protocol="udp" portid="445"><state state="open" reason="udp-response"/></port>'
+
+    tcp_first = canonicalize_nmap.canon_ports_139_445(
+        xml_template.format(ports=tcp_port + udp_port).encode("utf-8")
+    )
+    udp_first = canonicalize_nmap.canon_ports_139_445(
+        xml_template.format(ports=udp_port + tcp_port).encode("utf-8")
+    )
+
+    assert tcp_first == udp_first
+    ports = json.loads(tcp_first.decode("utf-8"))["hosts"][0]["ports"]
+    assert [(port["portid"], port["protocol"]) for port in ports] == [(445, "tcp"), (445, "udp")]
+
+
 def test_sign_and_verify_roundtrip():
     private_key = b"example-private-key" * 4
     public_key = pqc_sign.derive_public_key(private_key)
