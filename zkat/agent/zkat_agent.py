@@ -69,7 +69,12 @@ def _load_public_key(private_key: bytes, public_path: Path | None) -> tuple[byte
         return derived, None
 
     if public_path.exists():
-        return public_path.read_bytes(), public_path
+        public_key = public_path.read_bytes()
+        if public_key != derived:
+            raise ValueError(
+                f"Public key at {public_path} does not match the configured private key"
+            )
+        return public_key, public_path
 
     public_path.parent.mkdir(parents=True, exist_ok=True)
     public_path.write_bytes(derived)
