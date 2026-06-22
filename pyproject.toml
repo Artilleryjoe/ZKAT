@@ -10,17 +10,17 @@ readme = "README.md"
 requires-python = ">=3.11"
 authors = [{name = "ZKAT Team"}]
 dependencies = [
-    "lxml",
-    "gitpython",
-    "oqs",
-    "python-dateutil",
-    "packaging",
+    "lxml>=5.2",
+    "gitpython>=3.1",
+    "oqs>=0.10",
+    "python-dateutil>=2.9",
+    "packaging>=24.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest",
-    "jsonschema",
+    "pytest>=8.0",
+    "jsonschema>=4.22",
 ]
 
 [project.urls]

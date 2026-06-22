@@ -304,3 +304,38 @@ def test_git_anchor_creates_commit(tmp_path):
     assert repo.head.commit.hexsha == result["commit"]
     assert repo.head.reference.name == "main"
     assert Path(repo_path / result["path"]).exists()
+
+
+def test_prepare_run_directory_avoids_timestamp_collisions(tmp_path, monkeypatch):
+    class FixedDateTime:
+        @classmethod
+        def now(cls, tz=None):
+            from datetime import datetime
+
+            return datetime(2026, 6, 22, 12, 0, 0, tzinfo=tz)
+
+    monkeypatch.setattr(zkat_agent, "datetime", FixedDateTime)
+
+    first_run_id, first_run_dir = zkat_agent._prepare_run_directory(tmp_path)
+    second_run_id, second_run_dir = zkat_agent._prepare_run_directory(tmp_path)
+
+    assert first_run_id == "20260622T120000Z"
+    assert second_run_id.startswith("20260622T120000Z-")
+    assert first_run_dir.exists()
+    assert second_run_dir.exists()
+    assert first_run_dir != second_run_dir
+
+
+def test_git_anchor_rejects_files_outside_repository(tmp_path):
+    repo_path = tmp_path / "repo"
+    repo = Repo.init(repo_path, initial_branch="main")
+    config = repo.config_writer()
+    config.set_value("user", "name", "ZKAT Tester")
+    config.set_value("user", "email", "tester@example.com")
+    config.release()
+
+    outside_file = tmp_path / "attestation.json"
+    outside_file.write_text("{}")
+
+    with pytest.raises(ValueError, match="inside the Git repository"):
+        git_anchor.commit_attestation(repo_path, outside_file, "Add attestation", branch="main")

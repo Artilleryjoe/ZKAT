@@ -8,6 +8,7 @@ import hashlib
 import json
 import secrets
 import subprocess
+from uuid import uuid4
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -154,8 +155,14 @@ def _parse_args(argv: Sequence[str] | None) -> AgentConfig:
 def _prepare_run_directory(base: Path) -> tuple[str, Path]:
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     run_dir = base / timestamp
-    run_dir.mkdir(parents=True, exist_ok=True)
-    return timestamp, run_dir
+    try:
+        run_dir.mkdir(parents=True, exist_ok=False)
+        return timestamp, run_dir
+    except FileExistsError:
+        run_id = f"{timestamp}-{uuid4().hex[:8]}"
+        run_dir = base / run_id
+        run_dir.mkdir(parents=True, exist_ok=False)
+        return run_id, run_dir
 
 
 POLICY_ID = "no_smb_exposed"

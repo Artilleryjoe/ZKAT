@@ -135,7 +135,8 @@ def canon_ports_139_445(xml_bytes: bytes) -> bytes:
         xml_bytes = xml_bytes.encode("utf-8")
 
     try:
-        root = etree.fromstring(xml_bytes)
+        parser = etree.XMLParser(resolve_entities=False, no_network=True)
+        root = etree.fromstring(xml_bytes, parser=parser)
     except etree.XMLSyntaxError as exc:  # pragma: no cover - defensive
         raise ValueError("Unable to parse Nmap XML payload") from exc
 
