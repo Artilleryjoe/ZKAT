@@ -98,6 +98,22 @@ Near-term roadmap:
 - Keep explicit verifier failure-path coverage for signature, anchor, schema, and proof binding.
 - Document production-readiness criteria separately from prototype milestones.
 
+## Health checks
+
+Run the health checker before local development or release validation:
+
+```bash
+python -m zkat.health --json
+```
+
+The command exits non-zero only for failing checks. Warning results are intentionally advisory and
+identify prototype or environment-specific gaps that may not block fixture-based development:
+
+- `optional-modules`: install the `dev` extra when JSON Schema validation helpers are needed.
+- `zk-program-id`: expected while the Milestone 2 zkVM path still uses placeholder proving artifacts.
+- `nmap`: install the `nmap` binary for live scans, or continue using `--nmap-xml` fixtures for
+  hermetic runs.
+
 ## Running the agent
 
 The Milestone 1 agent accepts either a live `nmap` target or a pre-recorded XML
