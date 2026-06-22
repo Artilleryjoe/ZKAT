@@ -126,6 +126,24 @@ def _load_public_key(args: argparse.Namespace, signature_record: dict[str, Any])
     raise ValueError("No public key provided for signature verification")
 
 
+def _verify_public_key_binding(attestation: dict[str, Any], public_key: bytes) -> None:
+    """Ensure the verifier key is the key named by the attestation payload."""
+
+    attestation_public_key = attestation.get("public_key")
+    if attestation_public_key is None:
+        return
+    if not isinstance(attestation_public_key, str):
+        raise ValueError("Attestation public key must be Base64 encoded")
+
+    try:
+        attestation_public_key_bytes = base64.b64decode(attestation_public_key, validate=True)
+    except (ValueError, binascii.Error) as exc:
+        raise ValueError("Attestation public key is not valid Base64") from exc
+
+    if attestation_public_key_bytes != public_key:
+        raise ValueError("Signature public key does not match attestation public key")
+
+
 def _verify_email(
     args: argparse.Namespace,
     attestation: dict[str, Any],
@@ -199,6 +217,11 @@ def main(argv: Sequence[str] | None = None) -> None:
             raise SystemExit("Attestation chain tip does not match expected previous value")
 
     public_key = _load_public_key(args, signature_record)
+    try:
+        _verify_public_key_binding(attestation, public_key)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+
     signature_b64 = signature_record.get("signature")
     if not signature_b64:
         raise SystemExit("Signature record missing signature field")
