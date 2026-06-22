@@ -232,6 +232,34 @@ def test_verifier_rejects_tampered_email_payload(tmp_path):
         )
 
 
+def test_verifier_rejects_signature_key_substitution(tmp_path):
+    artifacts = _execute_agent(tmp_path)
+
+    attestation_bytes = artifacts["attestation"].read_bytes()
+    attacker_private_key = b"attacker-private-key" * 4
+    attacker_public_key = pqc_sign.derive_public_key(attacker_private_key)
+    substituted_signature = {
+        "algorithm": "sha3-512-simd-dilithium2-compatible",
+        "signature": pqc_sign.sign_dilithium2(attacker_private_key, attestation_bytes),
+        "public_key": base64.b64encode(attacker_public_key).decode("ascii"),
+        "payload": artifacts["attestation"].name,
+    }
+    substituted_signature_path = artifacts["run_dir"] / "substituted_signature.json"
+    substituted_signature_path.write_text(json.dumps(substituted_signature, indent=2))
+
+    with pytest.raises(SystemExit, match="public key does not match attestation public key"):
+        zkat_verify.main(
+            [
+                "--attestation",
+                str(artifacts["attestation"]),
+                "--signature",
+                str(substituted_signature_path),
+                "--canonical",
+                str(artifacts["canonical"]),
+            ]
+        )
+
+
 def test_verifier_rejects_mismatched_zk_commitment(tmp_path):
     artifacts = _execute_agent(tmp_path)
 
