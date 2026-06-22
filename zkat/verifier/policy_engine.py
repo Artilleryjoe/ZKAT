@@ -67,7 +67,24 @@ class PolicyEngine:
         self, evidence: Sequence[ControlEvidence], *, now: datetime | None = None
     ) -> PolicyResult:
         current_time = now or datetime.now(timezone.utc)
-        evidence_by_id = {record.control_id: record for record in evidence}
+        if current_time.tzinfo is None:
+            current_time = current_time.replace(tzinfo=timezone.utc)
+
+        evidence_by_id: dict[str, ControlEvidence] = {}
+        for record in evidence:
+            generated_at = record.generated_at
+            if generated_at.tzinfo is None:
+                generated_at = generated_at.replace(tzinfo=timezone.utc)
+                record = ControlEvidence(
+                    control_id=record.control_id,
+                    generated_at=generated_at,
+                    version=record.version,
+                )
+
+            previous = evidence_by_id.get(record.control_id)
+            if previous is None or record.generated_at > previous.generated_at:
+                evidence_by_id[record.control_id] = record
+
         errors: list[str] = []
 
         for control_id, requirement in self._requirements.items():

@@ -62,6 +62,30 @@ def test_policy_rejects_stale_version_and_age():
     assert any("stale" in err for err in result.errors)
 
 
+def test_policy_uses_newest_evidence_for_duplicate_controls():
+    now = datetime.now(timezone.utc)
+    policy = PolicyEngine({
+        "network-scan": ControlRequirement(min_version="2.0.0", fresh_within=timedelta(minutes=5)),
+    })
+    stale_evidence = ControlEvidence(
+        control_id="network-scan",
+        generated_at=now - timedelta(hours=1),
+        version="1.0.0",
+    )
+    fresh_evidence = ControlEvidence(
+        control_id="network-scan",
+        generated_at=now - timedelta(minutes=1),
+        version="2.0.0",
+    )
+
+    forward_result = policy.evaluate([stale_evidence, fresh_evidence], now=now)
+    reverse_result = policy.evaluate([fresh_evidence, stale_evidence], now=now)
+
+    assert forward_result.passed
+    assert reverse_result.passed
+    assert not forward_result.errors
+    assert not reverse_result.errors
+
 def test_policy_rejects_future_dated_evidence():
     now = datetime.now(timezone.utc)
     policy = PolicyEngine({
