@@ -81,7 +81,7 @@ def _extract_ports(host_element: etree._Element) -> Iterable[CanonicalPort]:
             )
         )
 
-    ports.sort(key=lambda entry: entry.portid)
+    ports.sort(key=lambda entry: (entry.portid, entry.protocol))
     return ports
 
 
