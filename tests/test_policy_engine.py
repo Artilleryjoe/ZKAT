@@ -62,6 +62,24 @@ def test_policy_rejects_stale_version_and_age():
     assert any("stale" in err for err in result.errors)
 
 
+def test_policy_rejects_future_dated_evidence():
+    now = datetime.now(timezone.utc)
+    policy = PolicyEngine({
+        "network-scan": ControlRequirement(fresh_within=timedelta(minutes=5)),
+    })
+    evidence = [
+        ControlEvidence(
+            control_id="network-scan",
+            generated_at=now + timedelta(minutes=1),
+            version="1.0.0",
+        )
+    ]
+
+    result = policy.evaluate(evidence, now=now)
+
+    assert not result.passed
+    assert any("from the future" in err for err in result.errors)
+
 def test_validate_chain_detects_breakage():
     first = _make_attestation("control-a", "1.0.0", "run-a", {"hash": None, "run_id": None})
     second = _make_attestation("control-b", "1.0.0", "run-b", {"hash": "bad", "run_id": "wrong"})

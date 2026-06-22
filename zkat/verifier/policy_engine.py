@@ -88,7 +88,13 @@ class PolicyEngine:
                     )
 
             if requirement.fresh_within:
-                if record.generated_at < current_time - requirement.fresh_within:
+                if record.generated_at > current_time:
+                    errors.append(
+                        "Control {control_id} evidence is from the future (generated at {ts})".format(
+                            control_id=control_id, ts=record.generated_at.isoformat()
+                        )
+                    )
+                elif record.generated_at < current_time - requirement.fresh_within:
                     errors.append(
                         "Control {control_id} evidence is stale (generated at {ts})".format(
                             control_id=control_id, ts=record.generated_at.isoformat()
