@@ -7,7 +7,7 @@ verifiers can confirm integrity and provenance without handling raw logs.
 
 > **Current status:** Milestone 2 is implemented as an end-to-end prototype. ZKAT now generates
 > signed and anchored attestations, records chain continuity, embeds structured control results,
-> and can require a zero-knowledge-style policy receipt during verification. The current zkVM path
+> includes schema versioning, and can require a zero-knowledge-style policy receipt during verification. The current zkVM path
 > still uses scaffolded receipts and a placeholder program identifier, so it validates data binding
 > and verifier behavior but is not production cryptographic assurance.
 
@@ -42,8 +42,10 @@ production cryptographic assurance. The major components are:
   also enforces the presence and validity of the receipt, ensures the published policy bit matches
   the receipt output, and re-evaluates the policy against the canonical projection.
 - **Control-result framework** that records probe metadata, collection time, status, and structured
-  evidence in the attestation. Built-in probes currently include baseline and Nmap evidence plus
-  pending Sysdig, osquery, and cloud-posture stubs for future evidence sources.
+  evidence in the attestation. Built-in probes include baseline, Nmap, firewall fixture, and
+  dependency fixture evidence plus pending Sysdig, osquery, and cloud-posture stubs for future
+  evidence sources. The fixture adapters are deterministic demo evidence, not live enterprise
+  collection.
 
 Acceptance coverage includes expected-success and expected-failure scenarios for signatures, anchor
 payloads, chain continuity, malformed Base64, public-key substitution, configurable policies, control
@@ -154,6 +156,16 @@ identify prototype or environment-specific gaps that may not block fixture-based
 - `nmap`: install the `nmap` binary for live scans, or continue using `--nmap-xml` fixtures for
   hermetic runs.
 
+## One-command demo
+
+Run the fixture demo and verifier with:
+
+```bash
+make demo
+```
+
+This generates an attestation bundle under `out/<run-id>/` and immediately verifies it with `--require-zk`.
+
 ## Running the agent
 
 The Milestone 2 agent accepts either a live `nmap` target or a pre-recorded XML file and produces a
@@ -198,9 +210,10 @@ ID, and re-evaluated by the verifier when `--require-zk` is used.
 ## Verifying an attestation
 
 The verifier rebuilds the canonical payload, checks the SHA3-256 digest, validates the signature,
-ensures timestamps are well-formed, optionally validates the schema and anchor email integrity,
-checks the expected previous chain tip when supplied, and enforces the proof block when
-`--require-zk` is configured.
+ensures timestamps and `schema_version` are supported, optionally validates the schema and anchor
+email integrity, checks the expected previous chain tip when supplied, and enforces the proof block
+when `--require-zk` is configured. Use `--program-hash` or `--program-hash-file` to pin an explicit
+allow-list of accepted zkVM program hashes; otherwise the bundled local program ID is used.
 
 ```bash
 python -m zkat.verifier.zkat_verify \
@@ -228,9 +241,25 @@ attestation, allowing a full audit trail to be validated without trusting agent-
 - Inspect email anchor integrity when an anchor email is supplied.
 - Validate schema shape when `jsonschema` is installed.
 - Enforce `--require-zk` if configured.
-- Verify the receipt against `program_hash` and the local expected program ID.
+- Verify the receipt against `program_hash` and either the local expected program ID or the
+  explicit `--program-hash` / `--program-hash-file` allow-list.
 - Compare the receipt’s policy bit and policy ID to the attested public output.
 - Re-evaluate the policy over the canonical projection and reject mismatched receipt results.
+
+## What is real vs stubbed
+
+Real in this MVP: canonical Nmap fixture/live-target processing, SHA3-256 commitment binding,
+attestation signing and signature verification, email payload integrity checks, chain-tip continuity,
+program-hash allow-listing, schema major-version checks, and acceptance tests for tampering paths.
+
+Stubbed or placeholder: zkVM receipts are local deterministic stubs, signatures use a
+Dilithium2-compatible interface placeholder, DKIM/Git validation assumptions are prototype-level, and
+firewall/dependency adapters are fixture evidence for demo breadth.
+
+Next: integrate a real RISC Zero or equivalent proof path, production PQC backend and key management,
+strong timestamping/transparency log anchoring, signed releases, SBOM, reproducible zk builds, and a
+policy language that maps directly to compliance controls. See `docs/architecture.md` and
+`docs/threat_model.md`.
 
 ## Control probes
 

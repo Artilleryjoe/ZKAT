@@ -6,6 +6,7 @@
   "type": "object",
   "required": [
     "$schema",
+    "schema_version",
     "run_id",
     "generated_at",
     "digest",
@@ -27,20 +28,32 @@
       "format": "date-time"
     },
     "target": {
-      "type": ["string", "null"]
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "control": {
       "type": "object",
-      "required": ["id", "version"],
+      "required": [
+        "id",
+        "version"
+      ],
       "properties": {
-        "id": {"type": "string"},
-        "version": {"type": "string"}
+        "id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
     },
     "digest": {
       "type": "object",
-      "required": ["canonical_sha3_256"],
+      "required": [
+        "canonical_sha3_256"
+      ],
       "properties": {
         "canonical_sha3_256": {
           "type": "string",
@@ -51,9 +64,14 @@
     },
     "result_commitment": {
       "type": "object",
-      "required": ["algorithm", "digest_hex"],
+      "required": [
+        "algorithm",
+        "digest_hex"
+      ],
       "properties": {
-        "algorithm": {"type": "string"},
+        "algorithm": {
+          "type": "string"
+        },
         "digest_hex": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
@@ -65,11 +83,17 @@
       "type": "object",
       "properties": {
         "hash": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "pattern": "^[0-9a-f]{64}$"
         },
         "run_id": {
-          "type": ["string", "null"]
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false
@@ -90,37 +114,68 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["addresses", "ports"],
+            "required": [
+              "addresses",
+              "ports"
+            ],
             "properties": {
               "addresses": {
                 "type": "array",
                 "items": {
                   "type": "object",
                   "properties": {
-                    "addr": {"type": "string"},
-                    "addrtype": {"type": "string"}
+                    "addr": {
+                      "type": "string"
+                    },
+                    "addrtype": {
+                      "type": "string"
+                    }
                   },
-                  "required": ["addr", "addrtype"],
+                  "required": [
+                    "addr",
+                    "addrtype"
+                  ],
                   "additionalProperties": false
                 }
               },
               "hostnames": {
                 "type": "array",
-                "items": {"type": "string"}
+                "items": {
+                  "type": "string"
+                }
               },
               "status": {
-                "type": ["string", "null"]
+                "type": [
+                  "string",
+                  "null"
+                ]
               },
               "ports": {
                 "type": "array",
                 "items": {
                   "type": "object",
-                  "required": ["portid", "protocol", "state", "service"],
+                  "required": [
+                    "portid",
+                    "protocol",
+                    "state",
+                    "service"
+                  ],
                   "properties": {
-                    "portid": {"type": "integer"},
-                    "protocol": {"type": "string"},
-                    "state": {"type": "string"},
-                    "reason": {"type": ["string", "null"]},
+                    "portid": {
+                      "type": "integer"
+                    },
+                    "protocol": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "service": {
                       "type": "object",
                       "additionalProperties": {
@@ -142,18 +197,41 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["control_id", "metadata", "status", "collected_at", "evidence"],
+        "required": [
+          "control_id",
+          "metadata",
+          "status",
+          "collected_at",
+          "evidence"
+        ],
         "properties": {
-          "control_id": {"type": "string"},
-          "status": {"type": "string"},
-          "collected_at": {"type": "string", "format": "date-time"},
+          "control_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "collected_at": {
+            "type": "string",
+            "format": "date-time"
+          },
           "metadata": {
             "type": "object",
-            "required": ["source", "version", "trust_domain"],
+            "required": [
+              "source",
+              "version",
+              "trust_domain"
+            ],
             "properties": {
-              "source": {"type": "string"},
-              "version": {"type": "string"},
-              "trust_domain": {"type": "string"}
+              "source": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "trust_domain": {
+                "type": "string"
+              }
             },
             "additionalProperties": false
           },
@@ -161,11 +239,21 @@
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["kind", "summary", "data"],
+              "required": [
+                "kind",
+                "summary",
+                "data"
+              ],
               "properties": {
-                "kind": {"type": "string"},
-                "summary": {"type": "string"},
-                "data": {"type": "object"}
+                "kind": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "data": {
+                  "type": "object"
+                }
               },
               "additionalProperties": false
             }
@@ -184,15 +272,30 @@
     },
     "zk_proof": {
       "type": "object",
-      "required": ["system", "program_hash", "input_commitment", "public", "receipt"],
+      "required": [
+        "system",
+        "program_hash",
+        "input_commitment",
+        "public",
+        "receipt"
+      ],
       "properties": {
-        "system": {"type": "string"},
-        "program_hash": {"type": "string"},
+        "system": {
+          "type": "string"
+        },
+        "program_hash": {
+          "type": "string"
+        },
         "input_commitment": {
           "type": "object",
-          "required": ["algorithm", "digest_hex"],
+          "required": [
+            "algorithm",
+            "digest_hex"
+          ],
           "properties": {
-            "algorithm": {"type": "string"},
+            "algorithm": {
+              "type": "string"
+            },
             "digest_hex": {
               "type": "string",
               "pattern": "^[0-9a-f]{64}$"
@@ -202,16 +305,30 @@
         },
         "public": {
           "type": "object",
-          "required": ["policy_id", "policy_ok"],
+          "required": [
+            "policy_id",
+            "policy_ok"
+          ],
           "properties": {
-            "policy_id": {"type": "string"},
-            "policy_ok": {"type": "boolean"}
+            "policy_id": {
+              "type": "string"
+            },
+            "policy_ok": {
+              "type": "boolean"
+            }
           },
           "additionalProperties": true
         },
-        "receipt": {"type": "string"}
+        "receipt": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
+    },
+    "schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic schema version. Verifiers accept backward-compatible changes within major version 1."
     }
   },
   "additionalProperties": true

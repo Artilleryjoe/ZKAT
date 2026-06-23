@@ -24,6 +24,7 @@ from .zk.prove_policy import prove_policy
 
 
 DEFAULT_SCHEMA = "https://example.com/zkat/attestation.schema.json"
+SCHEMA_VERSION = "1.0.0"
 CONTROL_ID = "nmap-139-445"
 CONTROL_VERSION = "1.0.0"
 
@@ -222,6 +223,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     chain_tip = _load_chain_tip(config.state_dir)
     attestation = {
         "$schema": DEFAULT_SCHEMA,
+        "schema_version": SCHEMA_VERSION,
         "run_id": run_id,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "control": {"id": CONTROL_ID, "version": CONTROL_VERSION},
