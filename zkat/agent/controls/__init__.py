@@ -8,7 +8,15 @@ from .base import (
     discover_control_probes,
     run_control_probes,
 )
-from .probes import CloudPostureProbe, NmapCanonicalProbe, OSQueryProbe, PlaceholderProbe, SysdigProbe
+from .probes import (
+    CloudPostureProbe,
+    DependencyScanProbe,
+    FirewallConfigProbe,
+    NmapCanonicalProbe,
+    OSQueryProbe,
+    PlaceholderProbe,
+    SysdigProbe,
+)
 
 __all__ = [
     "ControlContext",
@@ -20,6 +28,8 @@ __all__ = [
     "run_control_probes",
     "PlaceholderProbe",
     "NmapCanonicalProbe",
+    "FirewallConfigProbe",
+    "DependencyScanProbe",
     "SysdigProbe",
     "OSQueryProbe",
     "CloudPostureProbe",

@@ -33,6 +33,48 @@ class NmapCanonicalProbe(ControlProbe):
         return ControlResult(self.control_id, self.metadata, [evidence])
 
 
+class FirewallConfigProbe(ControlProbe):
+    control_id = "network.firewall.fixture"
+    metadata = ControlMetadata(source="local-fixture", version="1.0.0", trust_domain="local")
+
+    def collect(self) -> ControlResult:
+        open_ports = []
+        for host in self.context.canonical.get("hosts", []):
+            for port in host.get("ports", []):
+                if port.get("state") == "open":
+                    open_ports.append(
+                        {
+                            "host": host.get("addresses", []),
+                            "portid": port.get("portid"),
+                            "protocol": port.get("protocol"),
+                        }
+                    )
+        evidence = Evidence(
+            kind="firewall-config",
+            summary="Fixture firewall posture inferred from canonical open ports",
+            data={"default_policy": "deny", "observed_open_ports": open_ports},
+        )
+        return ControlResult(self.control_id, self.metadata, [evidence])
+
+
+class DependencyScanProbe(ControlProbe):
+    control_id = "software.dependency.fixture"
+    metadata = ControlMetadata(source="local-fixture", version="1.0.0", trust_domain="local")
+
+    def collect(self) -> ControlResult:
+        evidence = Evidence(
+            kind="dependency-scan",
+            summary="Fixture dependency baseline for demo attestation",
+            data={
+                "scanner": "zkat-fixture",
+                "critical_findings": 0,
+                "high_findings": 0,
+                "components": ["zkat-demo-target"],
+            },
+        )
+        return ControlResult(self.control_id, self.metadata, [evidence])
+
+
 class SysdigProbe(ControlProbe):
     control_id = "runtime.sysdig"
     metadata = ControlMetadata(source="sysdig", version="0.0.0-stub", trust_domain="sysdig")

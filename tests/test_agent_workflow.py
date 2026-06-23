@@ -473,3 +473,75 @@ def test_agent_accepts_custom_forbidden_port_policy(tmp_path):
             "--require-zk",
         ]
     )
+
+
+def test_verifier_rejects_wrong_program_hash(tmp_path):
+    artifacts = _execute_agent(tmp_path)
+    attestation_doc = json.loads(artifacts["attestation"].read_text())
+    attestation_doc["zk_proof"]["program_hash"] = "wrong-program"
+    tampered_path = artifacts["run_dir"] / "wrong_program_attestation.json"
+    tampered_bytes = json.dumps(attestation_doc, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    tampered_path.write_bytes(tampered_bytes)
+
+    private_key = artifacts["private_key"].read_bytes()
+    signature_doc = json.loads(artifacts["signature"].read_text())
+    signature_doc["signature"] = pqc_sign.sign_dilithium2(private_key, tampered_bytes)
+    signature_doc["payload"] = tampered_path.name
+    tampered_signature_path = artifacts["run_dir"] / "wrong_program_signature.json"
+    tampered_signature_path.write_text(json.dumps(signature_doc, indent=2))
+
+    with pytest.raises(SystemExit, match="Unexpected ZK program hash"):
+        zkat_verify.main([
+            "--attestation", str(tampered_path),
+            "--signature", str(tampered_signature_path),
+            "--canonical", str(artifacts["canonical"]),
+            "--require-zk",
+        ])
+
+
+def test_verifier_accepts_explicit_program_hash_allow_list(tmp_path):
+    artifacts = _execute_agent(tmp_path)
+    program_hash = json.loads(artifacts["attestation"].read_text())["zk_proof"]["program_hash"]
+    allow_list = artifacts["run_dir"] / "program_hashes.txt"
+    allow_list.write_text(program_hash + "\n")
+
+    zkat_verify.main([
+        "--attestation", str(artifacts["attestation"]),
+        "--signature", str(artifacts["signature"]),
+        "--canonical", str(artifacts["canonical"]),
+        "--program-hash-file", str(allow_list),
+        "--require-zk",
+    ])
+
+
+def test_attestation_includes_schema_version_and_additional_fixture_adapters(tmp_path):
+    artifacts = _execute_agent(tmp_path)
+    attestation_doc = json.loads(artifacts["attestation"].read_text())
+
+    assert attestation_doc["schema_version"] == "1.0.0"
+    control_ids = {control["control_id"] for control in attestation_doc["controls"]}
+    assert "network.firewall.fixture" in control_ids
+    assert "software.dependency.fixture" in control_ids
+
+
+def test_verifier_rejects_unsupported_schema_version(tmp_path):
+    artifacts = _execute_agent(tmp_path)
+    attestation_doc = json.loads(artifacts["attestation"].read_text())
+    attestation_doc["schema_version"] = "2.0.0"
+    tampered_path = artifacts["run_dir"] / "unsupported_schema_attestation.json"
+    tampered_bytes = json.dumps(attestation_doc, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    tampered_path.write_bytes(tampered_bytes)
+
+    private_key = artifacts["private_key"].read_bytes()
+    signature_doc = json.loads(artifacts["signature"].read_text())
+    signature_doc["signature"] = pqc_sign.sign_dilithium2(private_key, tampered_bytes)
+    signature_doc["payload"] = tampered_path.name
+    tampered_signature_path = artifacts["run_dir"] / "unsupported_schema_signature.json"
+    tampered_signature_path.write_text(json.dumps(signature_doc, indent=2))
+
+    with pytest.raises(SystemExit, match="Unsupported attestation schema_version"):
+        zkat_verify.main([
+            "--attestation", str(tampered_path),
+            "--signature", str(tampered_signature_path),
+            "--canonical", str(artifacts["canonical"]),
+        ])

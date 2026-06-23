@@ -23,6 +23,7 @@ from ..agent.zk.policy_inputs import (
 )
 
 PROGRAM_ID_PATH = Path(__file__).resolve().parents[1] / "zk" / "artifacts" / "program_id.txt"
+SUPPORTED_SCHEMA_MAJOR = 1
 
 try:  # pragma: no cover - jsonschema is optional at runtime
     from jsonschema import Draft202012Validator
@@ -79,6 +80,7 @@ def _verify_zk_proof(
     canonical_bytes: bytes,
     *,
     require_zk: bool,
+    allowed_program_hashes: set[str] | None = None,
 ) -> dict[str, Any] | None:
     zk_block = attestation.get("zk_proof")
     if zk_block is None:
@@ -96,8 +98,9 @@ def _verify_zk_proof(
         raise SystemExit("Result commitment does not match canonical digest")
 
     expected_program_hash = PROGRAM_ID_PATH.read_text(encoding="utf-8").strip()
+    allowed = allowed_program_hashes or {expected_program_hash}
     program_hash = zk_block.get("program_hash")
-    if program_hash != expected_program_hash:
+    if program_hash not in allowed:
         raise SystemExit("Unexpected ZK program hash")
 
     receipt_b64 = zk_block.get("receipt")
@@ -186,6 +189,16 @@ def _verify_email(
     return record
 
 
+def _verify_schema_version(attestation: dict[str, Any]) -> None:
+    version = attestation.get("schema_version", "1.0.0")
+    try:
+        major = int(str(version).split(".", 1)[0])
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Unsupported attestation schema_version") from exc
+    if major != SUPPORTED_SCHEMA_MAJOR:
+        raise ValueError(f"Unsupported attestation schema_version: {version}")
+
+
 def _verify_temporal_sanity(attestation: dict[str, Any]) -> None:
     generated_at = attestation.get("generated_at")
     if not generated_at:
@@ -203,6 +216,8 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--email", type=Path, help="Anchor email to inspect")
     parser.add_argument("--expected-previous", type=Path, help="Chain tip expected to precede this attestation")
     parser.add_argument("--schema", type=Path, default=_default_schema_path())
+    parser.add_argument("--program-hash", action="append", help="Allowed zkVM program hash; may be repeated")
+    parser.add_argument("--program-hash-file", type=Path, help="Newline-delimited allowed zkVM program hashes")
     parser.add_argument(
         "--require-zk",
         action="store_true",
@@ -243,6 +258,11 @@ def main(argv: Sequence[str] | None = None) -> None:
     if not verify_dilithium2(public_key, attestation_bytes, signature_b64):
         raise SystemExit("Signature verification failed")
 
+    try:
+        _verify_schema_version(attestation)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+
     _verify_temporal_sanity(attestation)
 
     schema_errors = _validate_schema(attestation, args.schema)
@@ -254,7 +274,21 @@ def main(argv: Sequence[str] | None = None) -> None:
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
 
-    zk_status = _verify_zk_proof(attestation, canonical_bytes, require_zk=args.require_zk)
+    allowed_program_hashes = set(args.program_hash or [])
+    if args.program_hash_file:
+        allowed_program_hashes.update(
+            line.strip()
+            for line in Path(args.program_hash_file)
+            .read_text(encoding="utf-8")
+            .splitlines()
+            if line.strip()
+        )
+    zk_status = _verify_zk_proof(
+        attestation,
+        canonical_bytes,
+        require_zk=args.require_zk,
+        allowed_program_hashes=allowed_program_hashes or None,
+    )
 
     print(
         json.dumps(
