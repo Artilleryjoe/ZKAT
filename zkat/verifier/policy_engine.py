@@ -88,33 +88,33 @@ class PolicyEngine:
         errors: list[str] = []
 
         for control_id, requirement in self._requirements.items():
-            record = evidence_by_id.get(control_id)
-            if record is None:
+            latest_record = evidence_by_id.get(control_id)
+            if latest_record is None:
                 if requirement.required:
                     errors.append(f"Missing required control: {control_id}")
                 continue
 
             if requirement.min_version:
-                if Version(record.version) < Version(requirement.min_version):
+                if Version(latest_record.version) < Version(requirement.min_version):
                     errors.append(
                         "Control {control_id} version {version} is below the minimum {minimum}".format(
                             control_id=control_id,
-                            version=record.version,
+                            version=latest_record.version,
                             minimum=requirement.min_version,
                         )
                     )
 
             if requirement.fresh_within:
-                if record.generated_at > current_time:
+                if latest_record.generated_at > current_time:
                     errors.append(
                         "Control {control_id} evidence is from the future (generated at {ts})".format(
-                            control_id=control_id, ts=record.generated_at.isoformat()
+                            control_id=control_id, ts=latest_record.generated_at.isoformat()
                         )
                     )
-                elif record.generated_at < current_time - requirement.fresh_within:
+                elif latest_record.generated_at < current_time - requirement.fresh_within:
                     errors.append(
                         "Control {control_id} evidence is stale (generated at {ts})".format(
-                            control_id=control_id, ts=record.generated_at.isoformat()
+                            control_id=control_id, ts=latest_record.generated_at.isoformat()
                         )
                     )
 

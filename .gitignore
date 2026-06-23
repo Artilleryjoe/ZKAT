@@ -23,3 +23,7 @@ ENV/
 .idea/
 .vscode/
 *.swp
+# ZKAT runtime artifacts
+out/
+state/
+*.eml

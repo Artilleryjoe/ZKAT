@@ -21,7 +21,16 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "jsonschema>=4.22",
+    "mypy>=1.10",
+    "types-python-dateutil>=2.9",
 ]
 
 [project.urls]
 Homepage = "https://example.com/zkat"
+
+[tool.mypy]
+python_version = "3.11"
+packages = ["zkat"]
+warn_unused_configs = true
+ignore_missing_imports = true
+disable_error_code = ["import-untyped"]

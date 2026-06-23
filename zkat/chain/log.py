@@ -67,15 +67,24 @@ class SignedRecord:
 
     @classmethod
     def from_dict(cls, data: dict[str, object]) -> "SignedRecord":
+        sequence = data.get("sequence")
+        previous_hash = data.get("previous_hash")
         payload_b64 = data.get("payload_b64")
+        signature = data.get("signature")
+        if not isinstance(sequence, int):
+            raise ValueError("Invalid sequence")
+        if previous_hash is not None and not isinstance(previous_hash, str):
+            raise ValueError("Invalid previous hash")
         if not isinstance(payload_b64, str):
             raise ValueError("Invalid payload encoding")
+        if not isinstance(signature, str):
+            raise ValueError("Invalid signature")
         payload = base64.b64decode(payload_b64.encode("ascii"))
         return cls(
-            sequence=int(data["sequence"]),
-            previous_hash=data.get("previous_hash"),
+            sequence=sequence,
+            previous_hash=previous_hash,
             payload=payload,
-            signature=str(data["signature"]),
+            signature=signature,
         )
 
 
