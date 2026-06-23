@@ -76,9 +76,13 @@ README.md
 
 ## Zero-knowledge policy proof (Current Prototype)
 
-The agent evaluates the policy "no_smb_exposed" by checking that ports 139 and 445 are not marked
-``open`` in the canonical projection. A local **stub** zkVM receipt is then generated that exposes
-only the boolean policy result and the SHA3-256 commitment over canonical bytes.
+The agent defaults to the policy "no_smb_exposed" by checking that ports 139 and 445 are not
+marked ``open`` in the canonical projection. The same policy engine can also load a JSON policy
+definition with ``--policy`` for other forbidden-port checks, for example certificate, firewall, or
+dependency controls that canonicalize their evidence into port-style findings can define their own
+policy identifier and forbidden ports. A local **stub** zkVM receipt is then generated that exposes
+only the boolean policy result, policy identifier, and the SHA3-256 commitment over canonical
+bytes.
 
 The attestation records this under ``zk_proof`` with the placeholder program identifier
 ``zkvm-risc0-policy-checker-placeholder``. Verifiers recompute the canonical digest, confirm the
@@ -149,6 +153,24 @@ Each run writes:
 - `signature.json`: deterministic Dilithium2-compatible signature record
 - `email/*.eml`: DKIM-ready anchor email containing the Base64 payload
 - `summary.json`: convenience pointer to the generated artifacts
+
+
+### Custom forbidden-port policies
+
+Pass ``--policy path/to/policy.json`` to replace the default SMB exposure policy. Supported policy
+files currently use the ``forbidden_open_ports`` type:
+
+```json
+{
+  "id": "no_http_exposed",
+  "type": "forbidden_open_ports",
+  "forbidden_ports": [80],
+  "description": "HTTP must not be open"
+}
+```
+
+The policy definition is embedded in the ZK public block, included in the receipt output by policy
+ID, and re-evaluated by the verifier when ``--require-zk`` is used.
 
 ## Verifying an attestation
 

@@ -7,7 +7,12 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .policy_inputs import build_policy_input, input_commitment_hex
+from .policy_inputs import (
+    PortExposurePolicy,
+    build_policy_input,
+    evaluate_port_exposure_policy,
+    input_commitment_hex,
+)
 
 PROGRAM_ID_PATH = Path(__file__).resolve().parents[2] / "zk" / "artifacts" / "program_id.txt"
 
@@ -16,21 +21,13 @@ def _load_program_hash() -> str:
     return PROGRAM_ID_PATH.read_text(encoding="utf-8").strip()
 
 
-def _evaluate_policy(canonical_document: dict[str, Any]) -> bool:
-    for host in canonical_document.get("hosts", []):
-        for port in host.get("ports", []):
-            if port.get("state") == "open":
-                return False
-    return True
-
-
-def prove_policy(canonical_bytes: bytes, policy_id: str) -> dict[str, Any]:
+def prove_policy(canonical_bytes: bytes, policy: PortExposurePolicy) -> dict[str, Any]:
     """Return a stubbed zkVM proof bundle for the given canonical input."""
 
     canonical_document = json.loads(canonical_bytes.decode("utf-8"))
-    policy_input = build_policy_input(canonical_bytes, policy_id)
+    policy_input = build_policy_input(canonical_bytes, policy)
     commitment_hex = input_commitment_hex(policy_input)
-    policy_ok = _evaluate_policy(canonical_document)
+    policy_ok = evaluate_port_exposure_policy(canonical_document, policy)
     program_hash = _load_program_hash()
 
     receipt_payload = {
@@ -38,6 +35,7 @@ def prove_policy(canonical_bytes: bytes, policy_id: str) -> dict[str, Any]:
         "public": {
             "policy_ok": policy_ok,
             "commitment": commitment_hex,
+            "policy_id": policy.policy_id,
         },
     }
     receipt_bytes = json.dumps(receipt_payload, separators=(",", ":"), sort_keys=True).encode(

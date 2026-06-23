@@ -419,3 +419,57 @@ def test_git_anchor_rejects_files_outside_repository(tmp_path):
 
     with pytest.raises(ValueError, match="inside the Git repository"):
         git_anchor.commit_attestation(repo_path, outside_file, "Add attestation", branch="main")
+
+
+def test_agent_accepts_custom_forbidden_port_policy(tmp_path):
+    policy_path = tmp_path / "policy.json"
+    policy_path.write_text(
+        json.dumps(
+            {
+                "id": "no_http_exposed",
+                "type": "forbidden_open_ports",
+                "forbidden_ports": [80],
+                "description": "HTTP must not be open",
+            }
+        )
+    )
+
+    output_dir = tmp_path / "out"
+    state_dir = tmp_path / "state"
+    zkat_agent.main(
+        [
+            "--nmap-xml",
+            str(FIXTURE_DIR / "sample_nmap.xml"),
+            "--output-dir",
+            str(output_dir),
+            "--state-dir",
+            str(state_dir),
+            "--private-key",
+            str(state_dir / "agent.key"),
+            "--policy",
+            str(policy_path),
+            "--skip-git",
+        ]
+    )
+
+    run_dir = next(output_dir.iterdir())
+    attestation_doc = json.loads((run_dir / "attestation.json").read_text())
+
+    public = attestation_doc["zk_proof"]["public"]
+    assert public["policy_id"] == "no_http_exposed"
+    assert public["policy"]["forbidden_ports"] == [80]
+    assert public["policy_ok"] is True
+
+    zkat_verify.main(
+        [
+            "--attestation",
+            str(run_dir / "attestation.json"),
+            "--signature",
+            str(run_dir / "signature.json"),
+            "--canonical",
+            str(run_dir / "canonical.json"),
+            "--email",
+            str(next((run_dir / "email").glob("*.eml"))),
+            "--require-zk",
+        ]
+    )

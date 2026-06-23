@@ -16,6 +16,11 @@ from ..agent.email_anchor import parse_anchor_email
 from ..agent.pqc_sign import verify_dilithium2
 from ..agent.canonicalize_nmap import canon_ports_139_445
 from .zk.verify_receipt import verify_receipt
+from ..agent.zk.policy_inputs import (
+    DEFAULT_POLICY,
+    PortExposurePolicy,
+    evaluate_port_exposure_policy,
+)
 
 PROGRAM_ID_PATH = Path(__file__).resolve().parents[1] / "zk" / "artifacts" / "program_id.txt"
 
@@ -57,12 +62,16 @@ def _derive_canonical_bytes(args: argparse.Namespace, attestation: dict[str, Any
     return _dump_canonical(attestation.get("canonical"))
 
 
-def _evaluate_policy(canonical_document: dict[str, Any]) -> bool:
-    for host in canonical_document.get("hosts", []):
-        for port in host.get("ports", []):
-            if port.get("state") == "open":
-                return False
-    return True
+def _policy_from_zk_block(zk_block: dict[str, Any]) -> PortExposurePolicy:
+    public = zk_block.get("public", {})
+    policy_data = public.get("policy")
+    if isinstance(policy_data, dict):
+        return PortExposurePolicy.from_dict(policy_data)
+
+    policy_id = public.get("policy_id")
+    if policy_id in (None, DEFAULT_POLICY.policy_id):
+        return DEFAULT_POLICY
+    raise SystemExit(f"ZK proof references unsupported policy without definition: {policy_id}")
 
 
 def _verify_zk_proof(
@@ -103,8 +112,12 @@ def _verify_zk_proof(
     if receipt_public.get("commitment_hex") != result_commitment:
         raise SystemExit("ZK receipt commitment does not match result commitment")
 
+    policy = _policy_from_zk_block(zk_block)
     canonical_document = json.loads(canonical_bytes.decode("utf-8"))
-    expected_policy_ok = _evaluate_policy(canonical_document)
+    expected_policy_ok = evaluate_port_exposure_policy(canonical_document, policy)
+
+    if receipt_public.get("policy_id") and receipt_public.get("policy_id") != policy.policy_id:
+        raise SystemExit("ZK receipt policy id does not match attestation policy")
 
     if zk_block.get("public", {}).get("policy_ok") != receipt_public.get("policy_ok"):
         raise SystemExit("ZK public output mismatch between attestation and receipt")
@@ -114,6 +127,7 @@ def _verify_zk_proof(
 
     return {
         "commitment": receipt_public.get("commitment_hex"),
+        "policy_id": policy.policy_id,
         "policy_ok": receipt_public.get("policy_ok"),
     }
 
