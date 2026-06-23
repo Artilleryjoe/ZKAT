@@ -17,6 +17,14 @@ from typing import Any
 from uuid import uuid4
 
 
+def _compact_header_value(value: str | None) -> str | None:
+    """Normalize MIME header values that may be folded by email policies."""
+
+    if value is None:
+        return None
+    return "".join(str(value).split())
+
+
 def send_anchor_email(
     run_id: str,
     digest_hex: str,
@@ -83,8 +91,8 @@ def parse_anchor_email(eml_bytes: bytes) -> dict[str, Any]:
                 break
 
     return {
-        "run_id": message.get("X-ZKAT-Run-Id"),
-        "digest": message.get("X-ZKAT-Digest"),
+        "run_id": _compact_header_value(message.get("X-ZKAT-Run-Id")),
+        "digest": _compact_header_value(message.get("X-ZKAT-Digest")),
         "message_id": message.get("Message-Id"),
         "subject": message.get("Subject"),
         "payload_b64": payload_b64,
