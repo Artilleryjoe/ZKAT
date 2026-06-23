@@ -31,4 +31,5 @@ def verify_receipt(receipt_b64: str, program_hash: str) -> dict[str, Any]:
     return {
         "commitment_hex": public.get("commitment"),
         "policy_ok": public.get("policy_ok"),
+        "policy_id": public.get("policy_id"),
     }

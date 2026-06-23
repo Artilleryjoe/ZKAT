@@ -19,7 +19,7 @@ from .email_anchor import send_anchor_email
 from .git_anchor import commit_attestation
 from .pqc_sign import derive_public_key, sign_dilithium2
 from .controls import ControlContext, run_control_probes
-from .zk.policy_inputs import build_policy_input
+from .zk.policy_inputs import DEFAULT_POLICY, PortExposurePolicy, build_policy_input
 from .zk.prove_policy import prove_policy
 
 
@@ -44,6 +44,7 @@ class AgentConfig:
     git_repo: Path | None
     git_branch: str | None
     git_message: str
+    policy: PortExposurePolicy
 
 
 def _default_output_dir() -> Path:
@@ -134,10 +135,22 @@ def _parse_args(argv: Sequence[str] | None) -> AgentConfig:
         default="ZKAT attestation {run_id}",
         help="Commit message template for Git anchoring",
     )
+    parser.add_argument(
+        "--policy",
+        type=Path,
+        help=(
+            "JSON policy definition. Defaults to no_smb_exposed. "
+            "Supported type: forbidden_open_ports."
+        ),
+    )
 
     args = parser.parse_args(argv)
     if not args.nmap_xml and not args.target:
         parser.error("either --target or --nmap-xml must be supplied")
+
+    policy = DEFAULT_POLICY
+    if args.policy:
+        policy = PortExposurePolicy.from_dict(json.loads(args.policy.read_text(encoding="utf-8")))
 
     return AgentConfig(
         target=args.target,
@@ -154,6 +167,7 @@ def _parse_args(argv: Sequence[str] | None) -> AgentConfig:
         git_repo=args.git_repo,
         git_branch=args.git_branch,
         git_message=args.git_message,
+        policy=policy,
     )
 
 
@@ -168,9 +182,6 @@ def _prepare_run_directory(base: Path) -> tuple[str, Path]:
         run_dir = base / run_id
         run_dir.mkdir(parents=True, exist_ok=False)
         return run_id, run_dir
-
-
-POLICY_ID = "no_smb_exposed"
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -200,8 +211,8 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     digest_hex = hashlib.sha3_256(canonical_bytes).hexdigest()
     canonical_document = json.loads(canonical_bytes.decode("utf-8"))
-    policy_input = build_policy_input(canonical_bytes, POLICY_ID)
-    zk_bundle = prove_policy(canonical_bytes, POLICY_ID)
+    policy_input = build_policy_input(canonical_bytes, config.policy)
+    zk_bundle = prove_policy(canonical_bytes, config.policy)
 
     control_context = ControlContext(
         run_id=run_id, digest=digest_hex, canonical=canonical_document, nmap=nmap_info
@@ -227,7 +238,8 @@ def main(argv: Sequence[str] | None = None) -> None:
                 "digest_hex": zk_bundle["input_commitment_hex"],
             },
             "public": {
-                "policy_id": POLICY_ID,
+                "policy_id": config.policy.policy_id,
+                "policy": config.policy.to_dict(),
                 "policy_ok": zk_bundle["policy_ok"],
             },
             "receipt": zk_bundle["receipt_b64"],
