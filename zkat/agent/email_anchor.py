@@ -75,10 +75,12 @@ def parse_anchor_email(eml_bytes: bytes) -> dict[str, Any]:
     message = parser.parsebytes(eml_bytes)
 
     payload_b64 = None
-    for line in message.get_body(preferencelist=("plain",)).get_content().splitlines():
-        if line.startswith("Payload-Base64:"):
-            payload_b64 = line.split(":", 1)[1].strip()
-            break
+    body = message.get_body(preferencelist=("plain",))
+    if body is not None:
+        for line in body.get_content().splitlines():
+            if line.startswith("Payload-Base64:"):
+                payload_b64 = line.split(":", 1)[1].strip()
+                break
 
     return {
         "run_id": message.get("X-ZKAT-Run-Id"),

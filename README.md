@@ -87,7 +87,9 @@ the canonicalized port states. Passing ``--require-zk`` forces verification to f
 is missing or inconsistent.
 
 This demonstrates binding and verifier logic, but should be treated as a **ZK roadmap prototype**
-rather than a deployed production zkVM integration.
+rather than a deployed production zkVM integration. The placeholder program ID is intentional until
+the Risc0 integration lands; at that point `zkat/zk/artifacts/program_id.txt`, receipt generation,
+and verifier checks should be updated together with the real image ID and proving artifacts.
 
 ## Strategy and Roadmap
 
@@ -97,6 +99,16 @@ Near-term roadmap:
 - Replace placeholder zkVM identifiers/receipts with real proving and verification artifacts.
 - Keep explicit verifier failure-path coverage for signature, anchor, schema, and proof binding.
 - Document production-readiness criteria separately from prototype milestones.
+
+## Local development
+
+Install ZKAT in editable mode with its development extras before running tests, schema validation helpers, or CI-equivalent checks:
+
+```bash
+pip install -e '.[dev]'
+```
+
+The `dev` extra installs the optional validation and test dependencies declared in `pyproject.toml`.
 
 ## Health checks
 
@@ -109,7 +121,7 @@ python -m zkat.health --json
 The command exits non-zero only for failing checks. Warning results are intentionally advisory and
 identify prototype or environment-specific gaps that may not block fixture-based development:
 
-- `optional-modules`: install the `dev` extra when JSON Schema validation helpers are needed.
+- `optional-modules`: run `pip install -e '.[dev]'` when JSON Schema validation helpers are needed.
 - `zk-program-id`: expected while the Milestone 2 zkVM path still uses placeholder proving artifacts.
 - `nmap`: install the `nmap` binary for live scans, or continue using `--nmap-xml` fixtures for
   hermetic runs.
